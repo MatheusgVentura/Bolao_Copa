@@ -1,0 +1,269 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Bolao da Copa</title>
+    <meta name="description" content="Bolao privado da Copa com palpites, ranking e painel admin." />
+    <meta property="og:title" content="Bolao da Copa" />
+    <meta property="og:description" content="Palpites por jogo, ranking e bonus especiais." />
+    <link rel="icon" type="image/png" href="soccer-ball.png" />
+    <link rel="apple-touch-icon" href="soccer-ball.png" />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <main class="page">
+      <section class="panel intro" aria-labelledby="page-title">
+        <div>
+          <p class="eyebrow">Bolao privado do O</p>
+          <h1 id="page-title">Bolao da Copa</h1>
+          <p class="summary">
+            Palpites por jogo, resultados oficiais e ranking por pontos.
+            Entrada combinada: <strong>R$100</strong> por pessoa.
+          </p>
+        </div>
+
+        <div class="stats" aria-label="Resumo do bolao">
+          <div>
+            <span id="totalParticipants">0</span>
+            <small>participantes</small>
+          </div>
+          <div>
+            <span id="totalMatches">0</span>
+            <small>jogos</small>
+          </div>
+          <div>
+            <span id="totalPrize">R$ 0,00</span>
+            <small>premio total</small>
+          </div>
+        </div>
+      </section>
+
+      <div class="admin-login">
+        <button class="secondary" id="adminLoginButton" type="button">Entrar como admin</button>
+        <button class="secondary hidden" id="adminLogoutButton" type="button">Sair do admin</button>
+      </div>
+
+      <p class="status" id="connectionStatus" role="status" aria-live="polite">
+        Conectando ao Supabase...
+      </p>
+
+      <section class="grid">
+        <form class="panel form-panel participant-only" id="participantForm">
+          <h2>Participante</h2>
+          <label for="participantName">Nome</label>
+          <input id="participantName" maxlength="40" placeholder="Ex: Matheus" required />
+
+          <label class="checkbox">
+            <input id="participantPaid" type="checkbox" required />
+            <span>Ja pagou os R$100</span>
+          </label>
+
+          <button class="primary" type="submit">Adicionar participante</button>
+          <p class="hint" id="participantMessage" role="status" aria-live="polite"></p>
+        </form>
+
+        <form class="panel form-panel admin-only admin-card" id="matchForm">
+          <h2>Jogos</h2>
+          <button class="secondary block" id="importMatchesButton" type="button">
+            Importar jogos oficiais
+          </button>
+          <p class="hint" id="importMessage" role="status" aria-live="polite"></p>
+
+          <div class="divider"></div>
+
+          <h3>Adicionar manualmente</h3>
+          <label for="stage">Fase</label>
+          <input id="stage" maxlength="30" placeholder="Ex: Grupo A" required />
+
+          <div class="split">
+            <div>
+              <label for="homeTeam">Selecao A</label>
+              <input id="homeTeam" maxlength="40" placeholder="Brasil" required />
+            </div>
+            <div>
+              <label for="awayTeam">Selecao B</label>
+              <input id="awayTeam" maxlength="40" placeholder="Argentina" required />
+            </div>
+          </div>
+
+          <button class="primary" type="submit">Adicionar jogo</button>
+          <p class="hint" id="matchMessage" role="status" aria-live="polite"></p>
+        </form>
+
+        <form class="panel form-panel participant-only" id="predictionForm">
+          <h2>Palpite</h2>
+          <label for="participantSelect">Participante</label>
+          <select id="participantSelect" required></select>
+
+          <label for="predictionStageSelect">Grupo ou fase</label>
+          <select id="predictionStageSelect"></select>
+
+          <label for="matchSelect">Jogo</label>
+          <select id="matchSelect" required></select>
+
+          <div class="score-row">
+            <input id="predictionHomeScore" type="number" min="0" max="30" required aria-label="Gols da selecao A" />
+            <span>x</span>
+            <input id="predictionAwayScore" type="number" min="0" max="30" required aria-label="Gols da selecao B" />
+          </div>
+
+          <button class="primary" type="submit">Salvar palpite</button>
+          <p class="hint" id="predictionMessage" role="status" aria-live="polite"></p>
+        </form>
+
+        <form class="panel form-panel admin-only admin-card" id="resultForm">
+          <h2>Resultado oficial</h2>
+          <label for="resultStageSelect">Grupo ou fase</label>
+          <select id="resultStageSelect"></select>
+
+          <label for="resultMatchSelect">Jogo</label>
+          <select id="resultMatchSelect" required></select>
+
+          <div class="score-row">
+            <input id="resultHomeScore" type="number" min="0" max="30" required aria-label="Gols oficiais da selecao A" />
+            <span>x</span>
+            <input id="resultAwayScore" type="number" min="0" max="30" required aria-label="Gols oficiais da selecao B" />
+          </div>
+
+          <button class="primary" type="submit">Salvar resultado</button>
+          <button class="secondary block" id="clearResultButton" type="button">Remover resultado</button>
+          <p class="hint" id="resultMessage" role="status" aria-live="polite"></p>
+        </form>
+
+        <form class="panel form-panel participant-only" id="specialPredictionForm">
+          <h2>Bonus especiais</h2>
+          <label for="specialParticipantSelect">Participante</label>
+          <select id="specialParticipantSelect" required></select>
+
+          <label for="championPick">Campeao</label>
+          <input id="championPick" maxlength="40" placeholder="Ex: Brasil" />
+
+          <label for="topScorerPick">Artilheiro</label>
+          <input id="topScorerPick" maxlength="60" placeholder="Ex: Mbappe" />
+
+          <label for="runnerUpPick">Vice-campeao</label>
+          <input id="runnerUpPick" maxlength="40" placeholder="Ex: Franca" />
+
+          <div class="split">
+            <div>
+              <label for="finalistOnePick">Finalista 1</label>
+              <input id="finalistOnePick" maxlength="40" placeholder="Brasil" />
+            </div>
+            <div>
+              <label for="finalistTwoPick">Finalista 2</label>
+              <input id="finalistTwoPick" maxlength="40" placeholder="Franca" />
+            </div>
+          </div>
+
+          <button class="primary" type="submit">Salvar bonus</button>
+          <p class="hint" id="specialPredictionMessage" role="status" aria-live="polite"></p>
+        </form>
+
+      </section>
+
+      <section class="layout-wide">
+        <section class="panel table-panel" aria-labelledby="ranking-title">
+          <div class="table-header">
+            <div>
+              <h2 id="ranking-title">Ranking</h2>
+              <p>10 exato, 7 vencedor e saldo, 5 vencedor e um placar, 3 vencedor ou empate.</p>
+            </div>
+          </div>
+          <div class="ranking-list" id="rankingTable"></div>
+          <div class="table-wrap">
+            <div class="empty" id="rankingEmpty">
+              <strong>Nenhum participante ainda.</strong>
+              <span>Adicione os amigos para montar o ranking.</span>
+            </div>
+          </div>
+        </section>
+
+        <section class="panel table-panel" aria-labelledby="matches-title">
+          <div class="table-header">
+            <div>
+              <h2 id="matches-title">Jogos e palpites</h2>
+              <p>Lista dos jogos cadastrados, resultados e palpites do grupo.</p>
+            </div>
+            <button class="secondary" id="refreshButton" type="button">Atualizar</button>
+          </div>
+          <div class="group-tabs" id="groupTabs" aria-label="Filtrar jogos por grupo"></div>
+          <div id="matchesList" class="matches-list"></div>
+          <div class="empty" id="matchesEmpty">
+            <strong>Nenhum jogo cadastrado.</strong>
+            <span>Cadastre os jogos para o grupo palpitar.</span>
+          </div>
+        </section>
+      </section>
+
+      <section class="panel table-panel admin-panel admin-only" aria-labelledby="admin-title">
+        <div class="table-header">
+          <div>
+            <h2 id="admin-title">Painel admin</h2>
+            <p>Confira os palpites e ajuste a pontuacao manualmente quando precisar.</p>
+          </div>
+        </div>
+
+        <div class="admin-tools">
+          <div>
+            <label for="adminStageSelect">Grupo ou fase</label>
+            <select id="adminStageSelect"></select>
+          </div>
+          <div>
+            <label for="adminMatchSelect">Jogo</label>
+            <select id="adminMatchSelect"></select>
+          </div>
+        </div>
+
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Participante</th>
+                <th>Jogo</th>
+                <th>Palpite</th>
+                <th>Resultado</th>
+                <th>Auto</th>
+                <th>Pontos finais</th>
+                <th>Conferido</th>
+              </tr>
+            </thead>
+            <tbody id="adminPredictionsTable"></tbody>
+          </table>
+          <div class="empty" id="adminEmpty">
+            <strong>Nenhum palpite para conferir.</strong>
+            <span>Escolha outro grupo ou aguarde os participantes apostarem.</span>
+          </div>
+        </div>
+
+        <div class="admin-subsection">
+          <h3>Bonus dos participantes</h3>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Participante</th>
+                  <th>Campeao</th>
+                  <th>Artilheiro</th>
+                  <th>Vice</th>
+                  <th>Finalistas</th>
+                  <th>Bonus atual</th>
+                  <th>Acao</th>
+                </tr>
+              </thead>
+              <tbody id="adminBonusTable"></tbody>
+            </table>
+            <div class="empty" id="adminBonusEmpty">
+              <strong>Nenhum bonus preenchido.</strong>
+              <span>Quando os participantes salvarem os bonus, eles aparecem aqui.</span>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="supabase-config.js"></script>
+    <script src="app.js"></script>
+  </body>
+</html>

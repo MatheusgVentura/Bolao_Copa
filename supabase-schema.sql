@@ -1,0 +1,128 @@
+create extension if not exists pgcrypto;
+
+create table if not exists public.participants (
+  id uuid primary key default gen_random_uuid(),
+  name text not null check (char_length(name) between 1 and 40),
+  paid boolean not null default false,
+  champion_pick text check (char_length(champion_pick) <= 40),
+  top_scorer_pick text check (char_length(top_scorer_pick) <= 60),
+  runner_up_pick text check (char_length(runner_up_pick) <= 40),
+  finalist_one_pick text check (char_length(finalist_one_pick) <= 40),
+  finalist_two_pick text check (char_length(finalist_two_pick) <= 40),
+  manual_bonus_points integer check (manual_bonus_points >= 0 and manual_bonus_points <= 200),
+  created_at timestamptz not null default now()
+);
+
+alter table public.participants add column if not exists champion_pick text check (char_length(champion_pick) <= 40);
+alter table public.participants add column if not exists top_scorer_pick text check (char_length(top_scorer_pick) <= 60);
+alter table public.participants add column if not exists runner_up_pick text check (char_length(runner_up_pick) <= 40);
+alter table public.participants add column if not exists finalist_one_pick text check (char_length(finalist_one_pick) <= 40);
+alter table public.participants add column if not exists finalist_two_pick text check (char_length(finalist_two_pick) <= 40);
+alter table public.participants add column if not exists manual_bonus_points integer check (manual_bonus_points >= 0 and manual_bonus_points <= 200);
+
+create table if not exists public.matches (
+  id uuid primary key default gen_random_uuid(),
+  source_id text unique,
+  stage text not null check (char_length(stage) between 1 and 30),
+  home_team text not null check (char_length(home_team) between 1 and 40),
+  away_team text not null check (char_length(away_team) between 1 and 40),
+  home_score integer check (home_score between 0 and 30),
+  away_score integer check (away_score between 0 and 30),
+  kickoff_at timestamptz,
+  venue text check (char_length(venue) <= 80),
+  created_at timestamptz not null default now()
+);
+
+alter table public.matches add column if not exists source_id text unique;
+alter table public.matches add column if not exists kickoff_at timestamptz;
+alter table public.matches add column if not exists venue text check (char_length(venue) <= 80);
+
+create table if not exists public.predictions (
+  id uuid primary key default gen_random_uuid(),
+  participant_id uuid not null references public.participants(id) on delete cascade,
+  match_id uuid not null references public.matches(id) on delete cascade,
+  home_score integer not null check (home_score between 0 and 30),
+  away_score integer not null check (away_score between 0 and 30),
+  manual_points integer check (manual_points in (0, 3, 5, 7, 10)),
+  reviewed boolean not null default false,
+  created_at timestamptz not null default now(),
+  unique (participant_id, match_id)
+);
+
+alter table public.predictions add column if not exists manual_points integer check (manual_points in (0, 3, 5, 7, 10));
+alter table public.predictions add column if not exists reviewed boolean not null default false;
+
+create table if not exists public.special_results (
+  id boolean primary key default true,
+  champion text check (char_length(champion) <= 40),
+  top_scorer text check (char_length(top_scorer) <= 60),
+  runner_up text check (char_length(runner_up) <= 40),
+  finalist_one text check (char_length(finalist_one) <= 40),
+  finalist_two text check (char_length(finalist_two) <= 40),
+  bonus_active boolean not null default false,
+  updated_at timestamptz not null default now(),
+  constraint single_special_results_row check (id = true)
+);
+
+alter table public.special_results add column if not exists bonus_active boolean not null default false;
+
+insert into public.special_results (id)
+values (true)
+on conflict (id) do nothing;
+
+alter table public.participants enable row level security;
+alter table public.matches enable row level security;
+alter table public.predictions enable row level security;
+alter table public.special_results enable row level security;
+
+drop policy if exists "Link pode ver participantes" on public.participants;
+create policy "Link pode ver participantes" on public.participants for select to anon using (true);
+drop policy if exists "Link pode adicionar participantes" on public.participants;
+create policy "Link pode adicionar participantes" on public.participants for insert to anon with check (true);
+drop policy if exists "Link pode editar participantes" on public.participants;
+create policy "Link pode editar participantes" on public.participants for update to anon using (true) with check (true);
+drop policy if exists "Link pode remover participantes" on public.participants;
+create policy "Link pode remover participantes" on public.participants for delete to anon using (true);
+
+drop policy if exists "Link pode ver jogos" on public.matches;
+create policy "Link pode ver jogos" on public.matches for select to anon using (true);
+drop policy if exists "Link pode adicionar jogos" on public.matches;
+create policy "Link pode adicionar jogos" on public.matches for insert to anon with check (true);
+drop policy if exists "Link pode atualizar resultados" on public.matches;
+create policy "Link pode atualizar resultados" on public.matches for update to anon using (true) with check (true);
+drop policy if exists "Link pode remover jogos" on public.matches;
+create policy "Link pode remover jogos" on public.matches for delete to anon using (true);
+
+drop policy if exists "Link pode ver palpites" on public.predictions;
+create policy "Link pode ver palpites" on public.predictions for select to anon using (true);
+drop policy if exists "Link pode salvar palpites" on public.predictions;
+create policy "Link pode salvar palpites" on public.predictions for insert to anon with check (true);
+drop policy if exists "Link pode editar palpites" on public.predictions;
+create policy "Link pode editar palpites" on public.predictions for update to anon using (true) with check (true);
+drop policy if exists "Link pode revisar palpites" on public.predictions;
+create policy "Link pode revisar palpites" on public.predictions for update to anon using (true) with check (true);
+drop policy if exists "Link pode remover palpites" on public.predictions;
+create policy "Link pode remover palpites" on public.predictions for delete to anon using (true);
+
+drop policy if exists "Link pode ver resultados especiais" on public.special_results;
+create policy "Link pode ver resultados especiais" on public.special_results for select to anon using (true);
+drop policy if exists "Link pode editar resultados especiais" on public.special_results;
+create policy "Link pode editar resultados especiais" on public.special_results for update to anon using (true) with check (true);
+
+do $$
+declare
+  v_table_name text;
+begin
+  foreach v_table_name in array array['participants', 'matches', 'predictions', 'special_results']
+  loop
+    if not exists (
+      select 1
+      from pg_publication_tables
+      where pubname = 'supabase_realtime'
+        and schemaname = 'public'
+        and tablename = v_table_name
+    ) then
+      execute format('alter publication supabase_realtime add table public.%I', v_table_name);
+    end if;
+  end loop;
+end $$;

@@ -1,0 +1,20 @@
+{
+  "matches": [
+    {
+      "id": "sample-001",
+      "stage": "Grupo A",
+      "home_team": "Mexico",
+      "away_team": "Adversario a definir",
+      "kickoff_at": "2026-06-11T19:00:00.000Z",
+      "venue": "Estadio Azteca"
+    },
+    {
+      "id": "sample-002",
+      "stage": "Grupo A",
+      "home_team": "Selecao 1",
+      "away_team": "Selecao 2",
+      "kickoff_at": "2026-06-12T00:00:00.000Z",
+      "venue": "Estadio a definir"
+    }
+  ]
+}
