@@ -43,13 +43,13 @@ create table if not exists public.predictions (
   match_id uuid not null references public.matches(id) on delete cascade,
   home_score integer not null check (home_score between 0 and 30),
   away_score integer not null check (away_score between 0 and 30),
-  manual_points integer check (manual_points in (0, 3, 5, 7, 10)),
+  manual_points integer check (manual_points in (0, 1, 3)),
   reviewed boolean not null default false,
   created_at timestamptz not null default now(),
   unique (participant_id, match_id)
 );
 
-alter table public.predictions add column if not exists manual_points integer check (manual_points in (0, 3, 5, 7, 10));
+alter table public.predictions add column if not exists manual_points integer check (manual_points in (0, 1, 3));
 alter table public.predictions add column if not exists reviewed boolean not null default false;
 
 create table if not exists public.special_results (

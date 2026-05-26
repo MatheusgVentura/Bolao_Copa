@@ -76,6 +76,9 @@
           <label for="stage">Fase</label>
           <input id="stage" maxlength="30" placeholder="Ex: Grupo A" required />
 
+          <label for="kickoffAt">Data e horario</label>
+          <input id="kickoffAt" type="datetime-local" />
+
           <div class="split">
             <div>
               <label for="homeTeam">Selecao A</label>
@@ -96,7 +99,7 @@
           <label for="participantSelect">Participante</label>
           <select id="participantSelect" required></select>
 
-          <label for="predictionStageSelect">Grupo ou fase</label>
+          <label for="predictionStageSelect">Dia</label>
           <select id="predictionStageSelect"></select>
 
           <label for="matchSelect">Jogo</label>
@@ -114,7 +117,7 @@
 
         <form class="panel form-panel admin-only admin-card" id="resultForm">
           <h2>Resultado oficial</h2>
-          <label for="resultStageSelect">Grupo ou fase</label>
+          <label for="resultStageSelect">Dia</label>
           <select id="resultStageSelect"></select>
 
           <label for="resultMatchSelect">Jogo</label>
@@ -167,7 +170,7 @@
           <div class="table-header">
             <div>
               <h2 id="ranking-title">Ranking</h2>
-              <p>10 exato, 7 vencedor e saldo, 5 vencedor e um placar, 3 vencedor ou empate.</p>
+              <p>3 placar exato, 1 vencedor ou empate, 0 erro.</p>
             </div>
           </div>
           <div class="ranking-list" id="rankingTable"></div>
@@ -183,15 +186,15 @@
           <div class="table-header">
             <div>
               <h2 id="matches-title">Jogos e palpites</h2>
-              <p>Lista dos jogos cadastrados, resultados e palpites do grupo.</p>
+              <p>Lista dos jogos cadastrados, resultados e palpites por dia.</p>
             </div>
             <button class="secondary" id="refreshButton" type="button">Atualizar</button>
           </div>
-          <div class="group-tabs" id="groupTabs" aria-label="Filtrar jogos por grupo"></div>
+          <div class="group-tabs" id="groupTabs" aria-label="Filtrar jogos por dia"></div>
           <div id="matchesList" class="matches-list"></div>
           <div class="empty" id="matchesEmpty">
             <strong>Nenhum jogo cadastrado.</strong>
-            <span>Cadastre os jogos para o grupo palpitar.</span>
+            <span>Cadastre os jogos para o pessoal palpitar.</span>
           </div>
         </section>
       </section>
@@ -206,7 +209,7 @@
 
         <div class="admin-tools">
           <div>
-            <label for="adminStageSelect">Grupo ou fase</label>
+            <label for="adminStageSelect">Dia</label>
             <select id="adminStageSelect"></select>
           </div>
           <div>
@@ -232,7 +235,7 @@
           </table>
           <div class="empty" id="adminEmpty">
             <strong>Nenhum palpite para conferir.</strong>
-            <span>Escolha outro grupo ou aguarde os participantes apostarem.</span>
+            <span>Escolha outro dia ou aguarde os participantes apostarem.</span>
           </div>
         </div>
 

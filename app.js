@@ -1,5 +1,5 @@
 const ENTRY_VALUE = 100;
-const BONUS_POINT_OPTIONS = [0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55, 60, 65, 70, 75];
+const BONUS_POINT_OPTIONS = Array.from({ length: 30 }, (_, index) => index);
 
 const participantForm = document.querySelector("#participantForm");
 const matchForm = document.querySelector("#matchForm");
@@ -39,8 +39,8 @@ let appConfig = null;
 let participants = [];
 let matches = [];
 let predictions = [];
-let selectedStage = "all";
-let selectedAdminStage = "all";
+let selectedDay = "all";
+let selectedAdminDay = "all";
 let selectedAdminMatch = "";
 let isAdmin = sessionStorage.getItem("bolao-admin") === "true";
 
@@ -92,7 +92,13 @@ function gameResult(home, away) {
 }
 
 function pointsFor(prediction, match) {
-  if (prediction.reviewed && prediction.manual_points !== null && prediction.manual_points !== undefined) {
+  const validManualPoints = [0, 1, 3];
+  if (
+    prediction.reviewed &&
+    prediction.manual_points !== null &&
+    prediction.manual_points !== undefined &&
+    validManualPoints.includes(Number(prediction.manual_points))
+  ) {
     return Number(prediction.manual_points);
   }
 
@@ -106,22 +112,12 @@ function automaticPointsFor(prediction, match) {
     prediction.home_score === match.home_score &&
     prediction.away_score === match.away_score;
 
-  if (exact) return 10;
+  if (exact) return 3;
 
   const predictionResult = gameResult(prediction.home_score, prediction.away_score);
   const officialResult = gameResult(match.home_score, match.away_score);
-  const sameWinnerOrDraw = predictionResult === officialResult;
-  const officialWasDraw = officialResult === "draw";
-  const sameGoalDifference =
-    prediction.home_score - prediction.away_score === match.home_score - match.away_score;
-  const winnerScoreCorrect =
-    (officialResult === "home" && prediction.home_score === match.home_score) ||
-    (officialResult === "away" && prediction.away_score === match.away_score);
 
-  if (sameWinnerOrDraw && officialWasDraw) return 3;
-  if (sameWinnerOrDraw && sameGoalDifference) return 7;
-  if (sameWinnerOrDraw && winnerScoreCorrect) return 5;
-  if (sameWinnerOrDraw) return 3;
+  if (predictionResult === officialResult) return 1;
   return 0;
 }
 
@@ -135,35 +131,6 @@ function normalizeText(value) {
 
 function sameText(a, b) {
   return Boolean(normalizeText(a)) && normalizeText(a) === normalizeText(b);
-}
-
-function exactStreakBonus(participant) {
-  let streak = 0;
-  let bonus = 0;
-
-  matches.forEach((match) => {
-    const prediction = predictions.find(
-      (item) => item.participant_id === participant.id && item.match_id === match.id
-    );
-    const exact =
-      prediction &&
-      match.home_score !== null &&
-      match.away_score !== null &&
-      prediction.home_score === match.home_score &&
-      prediction.away_score === match.away_score;
-
-    if (exact) {
-      streak += 1;
-      if (streak === 3) {
-        bonus += 5;
-      }
-      return;
-    }
-
-    streak = 0;
-  });
-
-  return bonus;
 }
 
 function specialBonusFor(participant) {
@@ -217,16 +184,39 @@ function stageLabel(stage) {
   return stage || "Sem fase";
 }
 
-function orderedStages() {
-  const stages = [...new Set(matches.map((match) => stageLabel(match.stage)))];
-  const groupStages = stages
-    .filter((stage) => /^group\s+[a-z]$/i.test(stage))
-    .sort((a, b) => a.localeCompare(b, "pt-BR", { numeric: true }));
-  const otherStages = stages
-    .filter((stage) => !/^group\s+[a-z]$/i.test(stage))
-    .sort((a, b) => a.localeCompare(b, "pt-BR", { numeric: true }));
+function matchDayKey(match) {
+  if (!match?.kickoff_at) return "sem-data";
 
-  return [...groupStages, ...otherStages];
+  const date = new Date(match.kickoff_at);
+  if (Number.isNaN(date.getTime())) return "sem-data";
+
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+function dayLabel(key) {
+  if (!key || key === "sem-data") return "Sem data";
+
+  const [year, month, day] = key.split("-").map(Number);
+  const date = new Date(year, month - 1, day, 12);
+
+  return new Intl.DateTimeFormat("pt-BR", {
+    weekday: "short",
+    day: "2-digit",
+    month: "2-digit"
+  }).format(date);
+}
+
+function orderedMatchDays() {
+  const days = [...new Set(matches.map(matchDayKey))];
+
+  return days.sort((a, b) => {
+    if (a === "sem-data") return 1;
+    if (b === "sem-data") return -1;
+    return a.localeCompare(b);
+  });
 }
 
 function option(label, value) {
@@ -264,11 +254,11 @@ function parseOpenFootballDate(date, time) {
 function renderSelects() {
   const selectedParticipant = participantSelect.value;
   const selectedSpecialParticipant = specialParticipantSelect.value;
-  const selectedPredictionStage = predictionStageSelect.value;
+  const selectedPredictionDay = predictionStageSelect.value;
   const selectedMatch = matchSelect.value;
-  const selectedResultStage = resultStageSelect.value;
+  const selectedResultDay = resultStageSelect.value;
   const selectedResultMatch = resultMatchSelect.value;
-  const selectedAdminStageValue = adminStageSelect.value || selectedAdminStage;
+  const selectedAdminDayValue = adminStageSelect.value || selectedAdminDay;
   const selectedAdminMatchValue = adminMatchSelect.value || selectedAdminMatch;
 
   participantSelect.innerHTML = "";
@@ -287,28 +277,28 @@ function renderSelects() {
     : "";
   fillSpecialForm(specialParticipantSelect.value);
 
-  const stageOptions = orderedStages().map((stage) => ({ label: stage.replace("Group", "Grupo"), value: stage }));
-  const fallbackStage = stageOptions[0]?.value || "";
+  const dayOptions = orderedMatchDays().map((day) => ({ label: dayLabel(day), value: day }));
+  const fallbackDay = dayOptions[0]?.value || "";
 
   [
-    { element: predictionStageSelect, value: selectedPredictionStage || fallbackStage },
-    { element: resultStageSelect, value: selectedResultStage || fallbackStage },
-    { element: adminStageSelect, value: selectedAdminStageValue || fallbackStage }
+    { element: predictionStageSelect, value: selectedPredictionDay || fallbackDay },
+    { element: resultStageSelect, value: selectedResultDay || fallbackDay },
+    { element: adminStageSelect, value: selectedAdminDayValue || fallbackDay }
   ].forEach(({ element, value }) => {
     element.innerHTML = "";
-    stageOptions.forEach((stage) => {
-      element.appendChild(option(stage.label, stage.value));
+    dayOptions.forEach((day) => {
+      element.appendChild(option(day.label, day.value));
     });
-    element.value = stageOptions.some((stage) => stage.value === value) ? value : fallbackStage;
+    element.value = dayOptions.some((day) => day.value === value) ? value : fallbackDay;
   });
 
-  selectedAdminStage = adminStageSelect.value;
+  selectedAdminDay = adminStageSelect.value;
 
-  const adminMatches = matches.filter((match) => stageLabel(match.stage) === selectedAdminStage);
+  const adminMatches = matches.filter((match) => matchDayKey(match) === selectedAdminDay);
   adminMatchSelect.innerHTML = "";
   adminMatches.forEach((match) => {
     const date = formatMatchDate(match.kickoff_at);
-    const label = `${match.home_team} x ${match.away_team}${date ? ` - ${date}` : ""}`;
+    const label = `${match.home_team} x ${match.away_team} - ${match.stage}${date ? ` - ${date}` : ""}`;
     adminMatchSelect.appendChild(option(label, match.id));
   });
   selectedAdminMatch = adminMatches.some((match) => match.id === selectedAdminMatchValue)
@@ -317,12 +307,12 @@ function renderSelects() {
   adminMatchSelect.value = selectedAdminMatch;
 
   [
-    { element: matchSelect, value: selectedMatch, stage: predictionStageSelect.value },
-    { element: resultMatchSelect, value: selectedResultMatch, stage: resultStageSelect.value }
-  ].forEach(({ element, value, stage }) => {
+    { element: matchSelect, value: selectedMatch, day: predictionStageSelect.value },
+    { element: resultMatchSelect, value: selectedResultMatch, day: resultStageSelect.value }
+  ].forEach(({ element, value, day }) => {
     element.innerHTML = "";
     element.appendChild(option("Escolha o jogo", ""));
-    const visibleMatches = matches.filter((match) => stageLabel(match.stage) === stage);
+    const visibleMatches = matches.filter((match) => matchDayKey(match) === day);
 
     visibleMatches.forEach((match) => {
       const date = formatMatchDate(match.kickoff_at);
@@ -359,24 +349,24 @@ function renderMatches() {
   matchesList.innerHTML = "";
   groupTabs.innerHTML = "";
 
-  const stages = orderedStages();
+  const days = orderedMatchDays();
 
-  if (!stages.length) {
-    selectedStage = "";
-  } else if (!selectedStage || selectedStage === "all" || !stages.includes(selectedStage)) {
-    selectedStage = stages[0];
+  if (!days.length) {
+    selectedDay = "";
+  } else if (!selectedDay || selectedDay === "all" || !days.includes(selectedDay)) {
+    selectedDay = days[0];
   }
 
-  stages.map((stage) => ({ label: stage.replace("Group", "Grupo"), value: stage })).forEach((tab) => {
+  days.map((day) => ({ label: dayLabel(day), value: day })).forEach((tab) => {
     const button = document.createElement("button");
     button.type = "button";
-    button.className = tab.value === selectedStage ? "active" : "";
-    button.dataset.stage = tab.value;
+    button.className = tab.value === selectedDay ? "active" : "";
+    button.dataset.day = tab.value;
     button.textContent = tab.label;
     groupTabs.appendChild(button);
   });
 
-  const visibleMatches = matches.filter((match) => stageLabel(match.stage) === selectedStage);
+  const visibleMatches = matches.filter((match) => matchDayKey(match) === selectedDay);
 
   visibleMatches.forEach((match) => {
     const matchPredictions = predictions.filter((prediction) => prediction.match_id === match.id);
@@ -424,10 +414,10 @@ function renderMatches() {
   if (matches.length && !visibleMatches.length) {
     matchesEmpty.style.display = "block";
     matchesEmpty.querySelector("strong").textContent = "Nenhum jogo nesse filtro.";
-    matchesEmpty.querySelector("span").textContent = "Escolha outro grupo ou fase.";
+    matchesEmpty.querySelector("span").textContent = "Escolha outro dia.";
   } else {
     matchesEmpty.querySelector("strong").textContent = "Nenhum jogo cadastrado.";
-    matchesEmpty.querySelector("span").textContent = "Cadastre os jogos para o grupo palpitar.";
+    matchesEmpty.querySelector("span").textContent = "Cadastre os jogos para o pessoal palpitar.";
   }
 }
 
@@ -446,7 +436,7 @@ function renderAdminPanel() {
       return { prediction, match, participant };
     })
     .filter(({ match }) => match)
-    .filter(({ match }) => stageLabel(match.stage) === selectedAdminStage)
+    .filter(({ match }) => matchDayKey(match) === selectedAdminDay)
     .filter(({ match }) => match.id === selectedAdminMatch);
 
   visiblePredictions.forEach(({ prediction, match, participant }) => {
@@ -466,7 +456,7 @@ function renderAdminPanel() {
       <td>${autoPoints}</td>
       <td>
         <select class="points-select" data-points-prediction="${prediction.id}">
-          ${[0, 3, 5, 7, 10].map((points) => `
+          ${[0, 1, 3].map((points) => `
             <option value="${points}" ${finalPoints === points ? "selected" : ""}>${points}</option>
           `).join("")}
         </select>
@@ -709,13 +699,21 @@ matchForm.addEventListener("submit", async (event) => {
   if (!requireAdmin()) return;
   const message = document.querySelector("#matchMessage");
   const stage = document.querySelector("#stage").value.trim();
+  const kickoffAt = document.querySelector("#kickoffAt").value;
   const homeTeam = document.querySelector("#homeTeam").value.trim();
   const awayTeam = document.querySelector("#awayTeam").value.trim();
 
   try {
+    const payload = {
+      stage,
+      home_team: homeTeam,
+      away_team: awayTeam,
+      kickoff_at: kickoffAt ? new Date(kickoffAt).toISOString() : null
+    };
+
     await supabaseClient
       .from("matches")
-      .insert({ stage, home_team: homeTeam, away_team: awayTeam })
+      .insert(payload)
       .throwOnError();
     matchForm.reset();
     message.textContent = "Jogo adicionado.";
@@ -918,10 +916,10 @@ rankingTable.addEventListener("click", async (event) => {
 });
 
 groupTabs.addEventListener("click", (event) => {
-  const button = event.target.closest("[data-stage]");
+  const button = event.target.closest("[data-day]");
   if (!button) return;
 
-  selectedStage = button.dataset.stage;
+  selectedDay = button.dataset.day;
   renderMatches();
 });
 
@@ -945,7 +943,7 @@ resultStageSelect.addEventListener("change", () => {
 });
 
 adminStageSelect.addEventListener("change", () => {
-  selectedAdminStage = adminStageSelect.value;
+  selectedAdminDay = adminStageSelect.value;
   selectedAdminMatch = "";
   renderSelects();
   renderAdminPanel();

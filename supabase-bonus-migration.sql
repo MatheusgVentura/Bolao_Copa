@@ -19,7 +19,7 @@ create table if not exists public.special_results (
 
 alter table public.special_results add column if not exists bonus_active boolean not null default false;
 
-alter table public.predictions add column if not exists manual_points integer check (manual_points in (0, 3, 5, 7, 10));
+alter table public.predictions add column if not exists manual_points integer check (manual_points in (0, 1, 3));
 alter table public.predictions add column if not exists reviewed boolean not null default false;
 
 insert into public.special_results (id)
