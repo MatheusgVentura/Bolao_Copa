@@ -104,6 +104,7 @@
 
           <label for="matchSelect">Jogo</label>
           <select id="matchSelect" required></select>
+          <p class="hint">Palpites encerram 1 hora antes do inicio da partida.</p>
 
           <div class="score-row">
             <input id="predictionHomeScore" type="number" min="0" max="30" required aria-label="Gols da selecao A" />
@@ -139,14 +140,8 @@
           <label for="specialParticipantSelect">Participante</label>
           <select id="specialParticipantSelect" required></select>
 
-          <label for="championPick">Campeao</label>
-          <input id="championPick" maxlength="40" placeholder="Ex: Brasil" />
-
           <label for="topScorerPick">Artilheiro</label>
           <input id="topScorerPick" maxlength="60" placeholder="Ex: Mbappe" />
-
-          <label for="runnerUpPick">Vice-campeao</label>
-          <input id="runnerUpPick" maxlength="40" placeholder="Ex: Franca" />
 
           <div class="split">
             <div>
@@ -159,6 +154,9 @@
             </div>
           </div>
 
+          <label for="championPick">Campeao da final</label>
+          <input id="championPick" maxlength="40" placeholder="Ex: Brasil" />
+
           <button class="primary" type="submit">Salvar bonus</button>
           <p class="hint" id="specialPredictionMessage" role="status" aria-live="polite"></p>
         </form>
@@ -170,7 +168,7 @@
           <div class="table-header">
             <div>
               <h2 id="ranking-title">Ranking</h2>
-              <p>3 placar exato, 1 vencedor ou empate, 0 erro.</p>
+              <p>1 resultado final, 3 placar exato, 5 artilheiro, 5 final e 5 campeao da final.</p>
             </div>
           </div>
           <div class="ranking-list" id="rankingTable"></div>
@@ -241,15 +239,15 @@
 
         <div class="admin-subsection">
           <h3>Bonus dos participantes</h3>
+          <p>Use 5 pontos por acerto: artilheiro, final correta e campeao dessa final.</p>
           <div class="table-wrap">
             <table>
               <thead>
                 <tr>
                   <th>Participante</th>
-                  <th>Campeao</th>
                   <th>Artilheiro</th>
-                  <th>Vice</th>
                   <th>Finalistas</th>
+                  <th>Campeao da final</th>
                   <th>Bonus atual</th>
                   <th>Acao</th>
                 </tr>

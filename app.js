@@ -1,5 +1,6 @@
 const ENTRY_VALUE = 100;
-const BONUS_POINT_OPTIONS = Array.from({ length: 30 }, (_, index) => index);
+const PREDICTION_DEADLINE_MS = 60 * 60 * 1000;
+const BONUS_POINT_OPTIONS = [0, 5, 10, 15];
 
 const participantForm = document.querySelector("#participantForm");
 const matchForm = document.querySelector("#matchForm");
@@ -154,7 +155,6 @@ function fillSpecialForm(participantId) {
   const participant = participants.find((item) => item.id === participantId);
   document.querySelector("#championPick").value = participant?.champion_pick || "";
   document.querySelector("#topScorerPick").value = participant?.top_scorer_pick || "";
-  document.querySelector("#runnerUpPick").value = participant?.runner_up_pick || "";
   document.querySelector("#finalistOnePick").value = participant?.finalist_one_pick || "";
   document.querySelector("#finalistTwoPick").value = participant?.finalist_two_pick || "";
 }
@@ -237,6 +237,29 @@ function formatMatchDate(value) {
   }).format(new Date(value));
 }
 
+function canPredictMatch(match) {
+  if (isAdmin || !match?.kickoff_at) return true;
+
+  const kickoff = new Date(match.kickoff_at).getTime();
+  if (Number.isNaN(kickoff)) return true;
+
+  return Date.now() <= kickoff - PREDICTION_DEADLINE_MS;
+}
+
+function predictionDeadlineText(match) {
+  if (!match?.kickoff_at) return "Sem horario definido";
+
+  const deadline = new Date(new Date(match.kickoff_at).getTime() - PREDICTION_DEADLINE_MS);
+  if (Number.isNaN(deadline.getTime())) return "Sem horario definido";
+
+  return new Intl.DateTimeFormat("pt-BR", {
+    day: "2-digit",
+    month: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit"
+  }).format(deadline);
+}
+
 function parseOpenFootballDate(date, time) {
   if (!date) return null;
   if (!time) return new Date(`${date}T12:00:00Z`).toISOString();
@@ -316,10 +339,13 @@ function renderSelects() {
 
     visibleMatches.forEach((match) => {
       const date = formatMatchDate(match.kickoff_at);
-      const label = `${match.home_team} x ${match.away_team} - ${match.stage}${date ? ` - ${date}` : ""}`;
-      element.appendChild(option(label, match.id));
+      const locked = element === matchSelect && !canPredictMatch(match);
+      const label = `${match.home_team} x ${match.away_team} - ${match.stage}${date ? ` - ${date}` : ""}${locked ? " - palpites encerrados" : ""}`;
+      const item = option(label, match.id);
+      item.disabled = locked;
+      element.appendChild(item);
     });
-    element.value = visibleMatches.some((match) => match.id === value) ? value : "";
+    element.value = visibleMatches.some((match) => match.id === value && (element !== matchSelect || canPredictMatch(match))) ? value : "";
   });
 }
 
@@ -378,6 +404,25 @@ function renderMatches() {
       .filter(Boolean)
       .join(" · ");
 
+    const predictionStatus = canPredictMatch(match)
+      ? `Palpites ate ${predictionDeadlineText(match)}`
+      : `Palpites encerrados em ${predictionDeadlineText(match)}`;
+
+    const predictionsContent = matchPredictions.length
+      ? matchPredictions.map((prediction) => {
+        const participant = participants.find((item) => item.id === prediction.participant_id);
+        const points = pointsFor(prediction, match);
+        return `
+            <div>
+              <span>${escapeHtml(participant?.name || "Participante removido")}</span>
+              <strong>${isAdmin ? `${prediction.home_score} x ${prediction.away_score}` : "* x *"}</strong>
+              <em>${isAdmin ? `${points} pts` : "-- pts"}</em>
+              <button class="danger mini-action admin-action" type="button" data-remove-prediction="${prediction.id}">Remover</button>
+            </div>
+          `;
+      }).join("")
+      : "<p>Nenhum palpite nesse jogo ainda.</p>";
+
     const card = document.createElement("article");
     card.className = "match-card";
     card.innerHTML = `
@@ -385,6 +430,7 @@ function renderMatches() {
         <div>
           <strong>${escapeHtml(match.home_team)} x ${escapeHtml(match.away_team)}</strong>
           <span>${escapeHtml(details)}</span>
+          <span>${escapeHtml(predictionStatus)}</span>
         </div>
         <div class="match-result ${match.home_score === null || match.away_score === null ? "open" : "finished"}">
           <small>${match.home_score === null || match.away_score === null ? "Aberto" : "Final"}</small>
@@ -393,18 +439,7 @@ function renderMatches() {
         <button class="danger admin-action" type="button" data-remove-match="${match.id}">Remover</button>
       </div>
       <div class="mini-table">
-        ${matchPredictions.length ? matchPredictions.map((prediction) => {
-          const participant = participants.find((item) => item.id === prediction.participant_id);
-          const points = pointsFor(prediction, match);
-          return `
-            <div>
-              <span>${escapeHtml(participant?.name || "Participante removido")}</span>
-              <strong>${prediction.home_score} x ${prediction.away_score}</strong>
-              <em>${points} pts</em>
-              <button class="danger mini-action admin-action" type="button" data-remove-prediction="${prediction.id}">Remover</button>
-            </div>
-          `;
-        }).join("") : "<p>Nenhum palpite nesse jogo ainda.</p>"}
+        ${predictionsContent}
       </div>
     `;
     matchesList.appendChild(card);
@@ -478,7 +513,6 @@ function renderAdminPanel() {
     [
       participant.champion_pick,
       participant.top_scorer_pick,
-      participant.runner_up_pick,
       participant.finalist_one_pick,
       participant.finalist_two_pick,
       participant.manual_bonus_points
@@ -493,10 +527,9 @@ function renderAdminPanel() {
 
     row.innerHTML = `
       <td>${escapeHtml(participant.name)}</td>
-      <td>${escapeHtml(participant.champion_pick || "-")}</td>
       <td>${escapeHtml(participant.top_scorer_pick || "-")}</td>
-      <td>${escapeHtml(participant.runner_up_pick || "-")}</td>
       <td>${escapeHtml(finalists || "-")}</td>
+      <td>${escapeHtml(participant.champion_pick || "-")}</td>
       <td>
         <select
           class="bonus-points-select"
@@ -727,6 +760,17 @@ matchForm.addEventListener("submit", async (event) => {
 predictionForm.addEventListener("submit", async (event) => {
   event.preventDefault();
   const message = document.querySelector("#predictionMessage");
+  const selectedMatch = matches.find((match) => match.id === matchSelect.value);
+
+  if (!selectedMatch) {
+    message.textContent = "Escolha um jogo para salvar o palpite.";
+    return;
+  }
+
+  if (!canPredictMatch(selectedMatch)) {
+    message.textContent = "Palpites desse jogo encerram 1 hora antes da partida.";
+    return;
+  }
 
   const existingPrediction = predictions.find(
     (prediction) =>
@@ -830,7 +874,6 @@ specialPredictionForm.addEventListener("submit", async (event) => {
   const alreadyHasBonus = [
     participant?.champion_pick,
     participant?.top_scorer_pick,
-    participant?.runner_up_pick,
     participant?.finalist_one_pick,
     participant?.finalist_two_pick
   ].some(Boolean);
@@ -846,7 +889,6 @@ specialPredictionForm.addEventListener("submit", async (event) => {
       .update({
         champion_pick: document.querySelector("#championPick").value.trim() || null,
         top_scorer_pick: document.querySelector("#topScorerPick").value.trim() || null,
-        runner_up_pick: document.querySelector("#runnerUpPick").value.trim() || null,
         finalist_one_pick: document.querySelector("#finalistOnePick").value.trim() || null,
         finalist_two_pick: document.querySelector("#finalistTwoPick").value.trim() || null
       })
@@ -1013,7 +1055,6 @@ adminBonusTable.addEventListener("click", async (event) => {
         .update({
           champion_pick: null,
           top_scorer_pick: null,
-          runner_up_pick: null,
           finalist_one_pick: null,
           finalist_two_pick: null
         })
