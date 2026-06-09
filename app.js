@@ -64,6 +64,7 @@ function applyAdminMode() {
   document.body.classList.toggle("is-admin", isAdmin);
   adminLoginButton.classList.toggle("hidden", isAdmin);
   adminLogoutButton.classList.toggle("hidden", !isAdmin);
+  renderMatches();
 }
 
 function requireAdmin() {
