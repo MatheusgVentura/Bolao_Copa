@@ -260,6 +260,10 @@ function predictionDeadlineText(match) {
   }).format(deadline);
 }
 
+function hasOfficialResult(match) {
+  return match?.home_score !== null && match?.away_score !== null;
+}
+
 function parseOpenFootballDate(date, time) {
   if (!date) return null;
   if (!time) return new Date(`${date}T12:00:00Z`).toISOString();
@@ -408,6 +412,7 @@ function renderMatches() {
       ? `Palpites ate ${predictionDeadlineText(match)}`
       : `Palpites encerrados em ${predictionDeadlineText(match)}`;
 
+    const canShowPredictions = isAdmin || hasOfficialResult(match);
     const predictionsContent = matchPredictions.length
       ? matchPredictions.map((prediction) => {
         const participant = participants.find((item) => item.id === prediction.participant_id);
@@ -415,8 +420,8 @@ function renderMatches() {
         return `
             <div>
               <span>${escapeHtml(participant?.name || "Participante removido")}</span>
-              <strong>${isAdmin ? `${prediction.home_score} x ${prediction.away_score}` : "* x *"}</strong>
-              <em>${isAdmin ? `${points} pts` : "-- pts"}</em>
+              <strong>${canShowPredictions ? `${prediction.home_score} x ${prediction.away_score}` : "* x *"}</strong>
+              <em>${canShowPredictions ? `${points} pts` : "-- pts"}</em>
               <button class="danger mini-action admin-action" type="button" data-remove-prediction="${prediction.id}">Remover</button>
             </div>
           `;
