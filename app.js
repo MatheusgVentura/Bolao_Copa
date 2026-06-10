@@ -143,6 +143,15 @@ function specialBonusFor(participant) {
   return 0;
 }
 
+function hasSpecialBonusPicks(participant) {
+  return [
+    participant?.champion_pick,
+    participant?.top_scorer_pick,
+    participant?.finalist_one_pick,
+    participant?.finalist_two_pick
+  ].some(Boolean);
+}
+
 function matchPointsForParticipant(participant) {
   return predictions
     .filter((prediction) => prediction.participant_id === participant.id)
@@ -154,6 +163,16 @@ function matchPointsForParticipant(participant) {
 
 function fillSpecialForm(participantId) {
   const participant = participants.find((item) => item.id === participantId);
+  const canShowSavedBonus = isAdmin || !hasSpecialBonusPicks(participant);
+
+  if (!canShowSavedBonus) {
+    document.querySelector("#championPick").value = "";
+    document.querySelector("#topScorerPick").value = "";
+    document.querySelector("#finalistOnePick").value = "";
+    document.querySelector("#finalistTwoPick").value = "";
+    return;
+  }
+
   document.querySelector("#championPick").value = participant?.champion_pick || "";
   document.querySelector("#topScorerPick").value = participant?.top_scorer_pick || "";
   document.querySelector("#finalistOnePick").value = participant?.finalist_one_pick || "";
@@ -578,8 +597,11 @@ function render() {
 }
 
 async function loadAll() {
+  const participantColumns = isAdmin
+    ? "*"
+    : "id,name,paid,manual_bonus_points,created_at";
   const [participantsResult, matchesResult, predictionsResult] = await Promise.all([
-    supabaseClient.from("participants").select("*").order("created_at", { ascending: true }),
+    supabaseClient.from("participants").select(participantColumns).order("created_at", { ascending: true }),
     supabaseClient.from("matches").select("*").order("kickoff_at", { ascending: true, nullsFirst: false }).order("created_at", { ascending: true }),
     supabaseClient.from("predictions").select("*").order("created_at", { ascending: true })
   ]);
@@ -877,12 +899,7 @@ specialPredictionForm.addEventListener("submit", async (event) => {
   event.preventDefault();
   const message = document.querySelector("#specialPredictionMessage");
   const participant = participants.find((item) => item.id === specialParticipantSelect.value);
-  const alreadyHasBonus = [
-    participant?.champion_pick,
-    participant?.top_scorer_pick,
-    participant?.finalist_one_pick,
-    participant?.finalist_two_pick
-  ].some(Boolean);
+  const alreadyHasBonus = hasSpecialBonusPicks(participant);
 
   if (alreadyHasBonus && !isAdmin) {
     message.textContent = "Seus bonus ja foram salvos e nao podem ser alterados.";
@@ -890,7 +907,7 @@ specialPredictionForm.addEventListener("submit", async (event) => {
   }
 
   try {
-    await supabaseClient
+    let query = supabaseClient
       .from("participants")
       .update({
         champion_pick: document.querySelector("#championPick").value.trim() || null,
@@ -898,8 +915,25 @@ specialPredictionForm.addEventListener("submit", async (event) => {
         finalist_one_pick: document.querySelector("#finalistOnePick").value.trim() || null,
         finalist_two_pick: document.querySelector("#finalistTwoPick").value.trim() || null
       })
-      .eq("id", specialParticipantSelect.value)
+      .eq("id", specialParticipantSelect.value);
+
+    if (!isAdmin) {
+      query = query
+        .is("champion_pick", null)
+        .is("top_scorer_pick", null)
+        .is("finalist_one_pick", null)
+        .is("finalist_two_pick", null);
+    }
+
+    const result = await query
+      .select("id")
       .throwOnError();
+
+    if (!isAdmin && !result.data?.length) {
+      message.textContent = "Esses bonus ja foram salvos e nao podem ser alterados.";
+      return;
+    }
+
     message.textContent = "Bonus salvos.";
     await loadAll();
   } catch (error) {
@@ -1097,7 +1131,7 @@ adminBonusTable.addEventListener("click", async (event) => {
   }
 });
 
-adminLoginButton.addEventListener("click", () => {
+adminLoginButton.addEventListener("click", async () => {
   const password = window.prompt("Senha do admin");
   if (password !== appConfig?.adminPassword) {
     window.alert("Senha incorreta.");
@@ -1107,12 +1141,14 @@ adminLoginButton.addEventListener("click", () => {
   isAdmin = true;
   sessionStorage.setItem("bolao-admin", "true");
   applyAdminMode();
+  await loadAll();
 });
 
-adminLogoutButton.addEventListener("click", () => {
+adminLogoutButton.addEventListener("click", async () => {
   isAdmin = false;
   sessionStorage.removeItem("bolao-admin");
   applyAdminMode();
+  await loadAll();
 });
 
 function subscribeToChanges() {
