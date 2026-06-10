@@ -472,6 +472,18 @@ button:disabled {
   line-height: 1.35;
 }
 
+.deadline-notice {
+  margin: 2px 0 16px;
+  border: 1px solid #f0d28a;
+  border-radius: var(--radius);
+  padding: 10px 12px;
+  background: #fff8e6;
+  color: #64410b;
+  font-size: 0.84rem;
+  font-weight: 800;
+  line-height: 1.35;
+}
+
 .divider {
   height: 1px;
   margin: 16px 0;

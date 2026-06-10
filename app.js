@@ -1,5 +1,6 @@
 const ENTRY_VALUE = 100;
 const PREDICTION_DEADLINE_MS = 60 * 60 * 1000;
+const SPECIAL_BONUS_DEADLINE = new Date("2026-06-10T23:59:59-03:00");
 
 const participantForm = document.querySelector("#participantForm");
 const matchForm = document.querySelector("#matchForm");
@@ -136,6 +137,26 @@ function normalizeText(value) {
 
 function sameText(a, b) {
   return Boolean(normalizeText(a)) && normalizeText(a) === normalizeText(b);
+}
+
+function isSpecialBonusOpen() {
+  return Date.now() <= SPECIAL_BONUS_DEADLINE.getTime();
+}
+
+function specialBonusDeadlineText() {
+  return new Intl.DateTimeFormat("pt-BR", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    timeZone: "America/Sao_Paulo"
+  }).format(SPECIAL_BONUS_DEADLINE);
+}
+
+function participantNameExists(name) {
+  const normalizedName = normalizeText(name);
+  return participants.some((participant) => normalizeText(participant.name) === normalizedName);
 }
 
 function specialBonusFor(participant) {
@@ -766,6 +787,16 @@ participantForm.addEventListener("submit", async (event) => {
   const name = document.querySelector("#participantName").value.trim();
   const paid = document.querySelector("#participantPaid").checked;
 
+  if (!name) {
+    message.textContent = "Informe o nome do participante.";
+    return;
+  }
+
+  if (participantNameExists(name)) {
+    message.textContent = "Ja existe um participante com esse nome.";
+    return;
+  }
+
   if (!paid) {
     message.textContent = "Confirme o pagamento para entrar no bolao.";
     return;
@@ -777,7 +808,9 @@ participantForm.addEventListener("submit", async (event) => {
     message.textContent = "Participante adicionado.";
     await loadAll();
   } catch (error) {
-    message.textContent = "Erro ao adicionar participante.";
+    message.textContent = error?.code === "23505"
+      ? "Ja existe um participante com esse nome."
+      : "Erro ao adicionar participante.";
     console.error(error);
   }
 });
@@ -1010,6 +1043,11 @@ specialPredictionForm.addEventListener("submit", async (event) => {
   const message = document.querySelector("#specialPredictionMessage");
   const participant = participants.find((item) => item.id === specialParticipantSelect.value);
   const alreadyHasBonus = hasSpecialBonusPicks(participant);
+
+  if (!isSpecialBonusOpen() && !isAdmin) {
+    message.textContent = `O prazo para salvar bonus encerrou em ${specialBonusDeadlineText()}.`;
+    return;
+  }
 
   if (specialResults?.bonus_active && !isAdmin) {
     message.textContent = "Os bonus ja foram encerrados.";

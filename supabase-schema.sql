@@ -20,6 +20,9 @@ alter table public.participants add column if not exists finalist_one_pick text 
 alter table public.participants add column if not exists finalist_two_pick text check (char_length(finalist_two_pick) <= 40);
 alter table public.participants add column if not exists manual_bonus_points integer check (manual_bonus_points >= 0 and manual_bonus_points <= 200);
 
+create unique index if not exists participants_unique_name_idx
+on public.participants (lower(btrim(name)));
+
 create table if not exists public.matches (
   id uuid primary key default gen_random_uuid(),
   source_id text unique,
