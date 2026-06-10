@@ -614,27 +614,34 @@ function render() {
 }
 
 async function loadAll() {
-  const participantColumns = isAdmin
+  const specialResultsResult = await supabaseClient
+    .from("special_results")
+    .select("*")
+    .eq("id", true)
+    .maybeSingle();
+
+  if (specialResultsResult.error) throw specialResultsResult.error;
+
+  specialResults = specialResultsResult.data || null;
+
+  const participantColumns = isAdmin || specialResults?.bonus_active
     ? "*"
     : "id,name,paid,created_at";
-  const [participantsResult, matchesResult, predictionsResult, specialResultsResult] = await Promise.all([
+  const [participantsResult, matchesResult, predictionsResult] = await Promise.all([
     supabaseClient.from("participants").select(participantColumns).order("created_at", { ascending: true }),
     supabaseClient.from("matches").select("*").order("kickoff_at", { ascending: true, nullsFirst: false }).order("created_at", { ascending: true }),
-    supabaseClient.from("predictions").select("*").order("created_at", { ascending: true }),
-    supabaseClient.from("special_results").select("*").eq("id", true).maybeSingle()
+    supabaseClient.from("predictions").select("*").order("created_at", { ascending: true })
   ]);
 
   const error =
     participantsResult.error ||
     matchesResult.error ||
-    predictionsResult.error ||
-    specialResultsResult.error;
+    predictionsResult.error;
   if (error) throw error;
 
   participants = participantsResult.data || [];
   matches = matchesResult.data || [];
   predictions = predictionsResult.data || [];
-  specialResults = specialResultsResult.data || null;
 
   render();
 }
@@ -1003,6 +1010,11 @@ specialPredictionForm.addEventListener("submit", async (event) => {
   const message = document.querySelector("#specialPredictionMessage");
   const participant = participants.find((item) => item.id === specialParticipantSelect.value);
   const alreadyHasBonus = hasSpecialBonusPicks(participant);
+
+  if (specialResults?.bonus_active && !isAdmin) {
+    message.textContent = "Os bonus ja foram encerrados.";
+    return;
+  }
 
   if (alreadyHasBonus && !isAdmin) {
     message.textContent = "Seus bonus ja foram salvos e nao podem ser alterados.";
