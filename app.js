@@ -1,5 +1,5 @@
 const ENTRY_VALUE = 100;
-const PREDICTION_DEADLINE_MS = 60 * 60 * 1000;
+const PREDICTION_DEADLINE_MS = 30 * 60 * 1000;
 const SPECIAL_BONUS_DEADLINE = new Date("2026-06-10T23:59:59-03:00");
 
 const participantForm = document.querySelector("#participantForm");
@@ -437,7 +437,7 @@ function renderRanking() {
       <span class="rank-position">${index + 1}</span>
       <div class="rank-main">
         <strong>${escapeHtml(participant.name)}</strong>
-        <small>${participant.matchPoints} pontos · ${participant.bonusPoints} bonus</small>
+        <small>${participant.matchPoints} pontos - ${participant.bonusPoints} bonus</small>
       </div>
       <strong class="rank-score">${participant.total}</strong>
       <span class="badge ${participant.paid ? "paid" : "pending"}">${participant.paid ? "Pago" : "Pendente"}</span>
@@ -480,7 +480,7 @@ function renderMatches() {
         : `${match.home_score} x ${match.away_score}`;
     const details = [match.stage, formatMatchDate(match.kickoff_at), match.venue]
       .filter(Boolean)
-      .join(" · ");
+      .join(" - ");
 
     const predictionStatus = canPredictMatch(match)
       ? `Palpites ate ${predictionDeadlineText(match)}`
@@ -856,7 +856,7 @@ predictionForm.addEventListener("submit", async (event) => {
   }
 
   if (!canPredictMatch(selectedMatch)) {
-    message.textContent = "Palpites desse jogo encerram 1 hora antes da partida.";
+    message.textContent = "Palpites desse jogo encerram 30 minutos antes da partida.";
     return;
   }
 

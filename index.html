@@ -39,14 +39,15 @@
         </div>
       </section>
 
-      <div class="admin-login">
-        <button class="secondary" id="adminLoginButton" type="button">Entrar como admin</button>
-        <button class="secondary hidden" id="adminLogoutButton" type="button">Sair do admin</button>
+      <div class="top-bar">
+        <p class="status" id="connectionStatus" role="status" aria-live="polite">
+          Conectando ao Supabase...
+        </p>
+        <div class="admin-login">
+          <button class="secondary" id="adminLoginButton" type="button">Entrar como admin</button>
+          <button class="secondary hidden" id="adminLogoutButton" type="button">Sair do admin</button>
+        </div>
       </div>
-
-      <p class="status" id="connectionStatus" role="status" aria-live="polite">
-        Conectando ao Supabase...
-      </p>
 
       <section class="grid">
         <form class="panel form-panel participant-only" id="participantForm">
@@ -104,7 +105,7 @@
 
           <label for="matchSelect">Jogo</label>
           <select id="matchSelect" required></select>
-          <p class="hint">Palpites encerram 1 hora antes do inicio da partida.</p>
+          <p class="hint">Palpites encerram 30 minutos antes do inicio da partida.</p>
 
           <div class="score-row">
             <input id="predictionHomeScore" type="number" min="0" max="30" required aria-label="Gols da selecao A" />
