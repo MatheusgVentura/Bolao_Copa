@@ -168,7 +168,7 @@
           <div class="table-header">
             <div>
               <h2 id="ranking-title">Ranking</h2>
-              <p>1 resultado final, 3 placar exato, 5 artilheiro, 5 final e 5 campeao da final.</p>
+              <p>1 ponto pelo resultado final, 3 pelo placar exato, 5 pelo artilheiro, 3 por finalista e 5 pelo campeao da final.</p>
             </div>
           </div>
           <div class="ranking-list" id="rankingTable"></div>
@@ -239,7 +239,33 @@
 
         <div class="admin-subsection">
           <h3>Bonus dos participantes</h3>
-          <p>Use 5 pontos por acerto: artilheiro, final correta e campeao dessa final.</p>
+          <p>5 pontos por artilheiro, 3 por finalista correto e 5 pontos para quem acertar o campeao dessa final.</p>
+          <form class="admin-tools" id="specialResultForm">
+            <div>
+              <label for="officialTopScorer">Artilheiro oficial</label>
+              <input id="officialTopScorer" maxlength="60" placeholder="Mbappe" />
+            </div>
+            <div>
+              <label for="officialFinalistOne">Finalista oficial 1</label>
+              <input id="officialFinalistOne" maxlength="40" placeholder="Brasil" />
+            </div>
+            <div>
+              <label for="officialFinalistTwo">Finalista oficial 2</label>
+              <input id="officialFinalistTwo" maxlength="40" placeholder="Franca" />
+            </div>
+            <div>
+              <label for="officialChampion">Campeao oficial</label>
+              <input id="officialChampion" maxlength="40" placeholder="Brasil" />
+            </div>
+            <label class="checkbox compact-check">
+              <input id="officialBonusActive" type="checkbox" />
+              <span>Ativar bonus</span>
+            </label>
+            <button class="primary compact-save" type="submit">Salvar oficiais</button>
+            <button class="secondary compact-save" id="disableBonusPointsButton" type="button">Remover pontos</button>
+            <button class="secondary compact-save" id="clearSpecialResultButton" type="button">Remover oficiais</button>
+            <p class="hint" id="specialResultMessage" role="status" aria-live="polite"></p>
+          </form>
           <div class="table-wrap">
             <table>
               <thead>
@@ -249,7 +275,7 @@
                   <th>Finalistas</th>
                   <th>Campeao da final</th>
                   <th>Bonus atual</th>
-                  <th>Acao</th>
+                  <th>Palpite</th>
                 </tr>
               </thead>
               <tbody id="adminBonusTable"></tbody>

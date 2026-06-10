@@ -1,17 +1,19 @@
 const ENTRY_VALUE = 100;
 const PREDICTION_DEADLINE_MS = 60 * 60 * 1000;
-const BONUS_POINT_OPTIONS = [0, 5, 10, 15];
 
 const participantForm = document.querySelector("#participantForm");
 const matchForm = document.querySelector("#matchForm");
 const predictionForm = document.querySelector("#predictionForm");
 const resultForm = document.querySelector("#resultForm");
+const specialResultForm = document.querySelector("#specialResultForm");
 const specialPredictionForm = document.querySelector("#specialPredictionForm");
 const refreshButton = document.querySelector("#refreshButton");
 const importMatchesButton = document.querySelector("#importMatchesButton");
 const adminLoginButton = document.querySelector("#adminLoginButton");
 const adminLogoutButton = document.querySelector("#adminLogoutButton");
 const clearResultButton = document.querySelector("#clearResultButton");
+const disableBonusPointsButton = document.querySelector("#disableBonusPointsButton");
+const clearSpecialResultButton = document.querySelector("#clearSpecialResultButton");
 
 const totalParticipants = document.querySelector("#totalParticipants");
 const totalMatches = document.querySelector("#totalMatches");
@@ -40,6 +42,7 @@ let appConfig = null;
 let participants = [];
 let matches = [];
 let predictions = [];
+let specialResults = null;
 let selectedDay = "all";
 let selectedAdminDay = "all";
 let selectedAdminMatch = "";
@@ -136,11 +139,33 @@ function sameText(a, b) {
 }
 
 function specialBonusFor(participant) {
-  if (participant.manual_bonus_points !== null && participant.manual_bonus_points !== undefined) {
-    return Number(participant.manual_bonus_points);
-  }
+  if (!specialResults?.bonus_active) return 0;
 
-  return 0;
+  const officialFinalists = [
+    specialResults.finalist_one,
+    specialResults.finalist_two
+  ].filter(Boolean);
+  const participantFinalists = [
+    participant?.finalist_one_pick,
+    participant?.finalist_two_pick
+  ].filter(Boolean);
+
+  const matchedOfficialFinalists = new Set();
+  participantFinalists.forEach((pick) => {
+    const officialIndex = officialFinalists.findIndex((official, index) =>
+      !matchedOfficialFinalists.has(index) && sameText(pick, official)
+    );
+
+    if (officialIndex >= 0) {
+      matchedOfficialFinalists.add(officialIndex);
+    }
+  });
+
+  const finalistPoints = matchedOfficialFinalists.size * 3;
+  const championPoints = sameText(participant?.champion_pick, specialResults.champion) ? 5 : 0;
+  const topScorerPoints = sameText(participant?.top_scorer_pick, specialResults.top_scorer) ? 5 : 0;
+
+  return finalistPoints + championPoints + topScorerPoints;
 }
 
 function hasSpecialBonusPicks(participant) {
@@ -177,6 +202,14 @@ function fillSpecialForm(participantId) {
   document.querySelector("#topScorerPick").value = participant?.top_scorer_pick || "";
   document.querySelector("#finalistOnePick").value = participant?.finalist_one_pick || "";
   document.querySelector("#finalistTwoPick").value = participant?.finalist_two_pick || "";
+}
+
+function fillSpecialResultForm() {
+  document.querySelector("#officialTopScorer").value = specialResults?.top_scorer || "";
+  document.querySelector("#officialFinalistOne").value = specialResults?.finalist_one || "";
+  document.querySelector("#officialFinalistTwo").value = specialResults?.finalist_two || "";
+  document.querySelector("#officialChampion").value = specialResults?.champion || "";
+  document.querySelector("#officialBonusActive").checked = Boolean(specialResults?.bonus_active);
 }
 
 function participantScore(participant) {
@@ -539,8 +572,7 @@ function renderAdminPanel() {
       participant.champion_pick,
       participant.top_scorer_pick,
       participant.finalist_one_pick,
-      participant.finalist_two_pick,
-      participant.manual_bonus_points
+      participant.finalist_two_pick
     ].some(Boolean)
   );
 
@@ -555,26 +587,10 @@ function renderAdminPanel() {
       <td>${escapeHtml(participant.top_scorer_pick || "-")}</td>
       <td>${escapeHtml(finalists || "-")}</td>
       <td>${escapeHtml(participant.champion_pick || "-")}</td>
+      <td>${specialBonusFor(participant)}</td>
       <td>
-        <select
-          class="bonus-points-select"
-          data-bonus-participant="${participant.id}"
-          aria-label="Pontos de bonus de ${escapeHtml(participant.name)}"
-        >
-          ${BONUS_POINT_OPTIONS.map((points) => `
-            <option value="${points}" ${specialBonusFor(participant) === points ? "selected" : ""}>${points}</option>
-          `).join("")}
-        </select>
-      </td>
-      <td>
-        <button class="primary compact-save" type="button" data-save-bonus-participant="${participant.id}">
-          Salvar
-        </button>
-        <button class="secondary compact-save" type="button" data-clear-bonus-points="${participant.id}">
-          Zerar pontos
-        </button>
         <button class="danger compact-save" type="button" data-clear-bonus-picks="${participant.id}">
-          Remover bonus
+          Apagar palpite
         </button>
       </td>
     `;
@@ -594,27 +610,31 @@ function render() {
   renderRanking();
   renderMatches();
   renderAdminPanel();
+  fillSpecialResultForm();
 }
 
 async function loadAll() {
   const participantColumns = isAdmin
     ? "*"
-    : "id,name,paid,manual_bonus_points,created_at";
-  const [participantsResult, matchesResult, predictionsResult] = await Promise.all([
+    : "id,name,paid,created_at";
+  const [participantsResult, matchesResult, predictionsResult, specialResultsResult] = await Promise.all([
     supabaseClient.from("participants").select(participantColumns).order("created_at", { ascending: true }),
     supabaseClient.from("matches").select("*").order("kickoff_at", { ascending: true, nullsFirst: false }).order("created_at", { ascending: true }),
-    supabaseClient.from("predictions").select("*").order("created_at", { ascending: true })
+    supabaseClient.from("predictions").select("*").order("created_at", { ascending: true }),
+    supabaseClient.from("special_results").select("*").eq("id", true).maybeSingle()
   ]);
 
   const error =
     participantsResult.error ||
     matchesResult.error ||
-    predictionsResult.error;
+    predictionsResult.error ||
+    specialResultsResult.error;
   if (error) throw error;
 
   participants = participantsResult.data || [];
   matches = matchesResult.data || [];
   predictions = predictionsResult.data || [];
+  specialResults = specialResultsResult.data || null;
 
   render();
 }
@@ -891,6 +911,89 @@ clearResultButton.addEventListener("click", async () => {
   }
 });
 
+specialResultForm.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  if (!requireAdmin()) return;
+
+  const message = document.querySelector("#specialResultMessage");
+
+  try {
+    await supabaseClient
+      .from("special_results")
+      .update({
+        top_scorer: document.querySelector("#officialTopScorer").value.trim() || null,
+        finalist_one: document.querySelector("#officialFinalistOne").value.trim() || null,
+        finalist_two: document.querySelector("#officialFinalistTwo").value.trim() || null,
+        champion: document.querySelector("#officialChampion").value.trim() || null,
+        bonus_active: document.querySelector("#officialBonusActive").checked,
+        updated_at: new Date().toISOString()
+      })
+      .eq("id", true)
+      .throwOnError();
+
+    message.textContent = "Bonus oficiais salvos.";
+    await loadAll();
+  } catch (error) {
+    message.textContent = "Erro ao salvar bonus oficiais.";
+    console.error(error);
+  }
+});
+
+clearSpecialResultButton.addEventListener("click", async () => {
+  if (!requireAdmin()) return;
+  if (!window.confirm("Remover os resultados oficiais dos bonus?")) return;
+
+  const message = document.querySelector("#specialResultMessage");
+
+  try {
+    await supabaseClient
+      .from("special_results")
+      .update({
+        top_scorer: null,
+        finalist_one: null,
+        finalist_two: null,
+        champion: null,
+        bonus_active: false,
+        updated_at: new Date().toISOString()
+      })
+      .eq("id", true)
+      .throwOnError();
+
+    message.textContent = "Bonus oficiais removidos.";
+    await loadAll();
+  } catch (error) {
+    message.textContent = "Erro ao remover bonus oficiais.";
+    console.error(error);
+  }
+});
+
+disableBonusPointsButton.addEventListener("click", async () => {
+  if (!requireAdmin()) return;
+
+  const message = document.querySelector("#specialResultMessage");
+
+  try {
+    await supabaseClient
+      .from("special_results")
+      .update({
+        top_scorer: document.querySelector("#officialTopScorer").value.trim() || specialResults?.top_scorer || null,
+        finalist_one: document.querySelector("#officialFinalistOne").value.trim() || specialResults?.finalist_one || null,
+        finalist_two: document.querySelector("#officialFinalistTwo").value.trim() || specialResults?.finalist_two || null,
+        champion: document.querySelector("#officialChampion").value.trim() || specialResults?.champion || null,
+        bonus_active: false,
+        updated_at: new Date().toISOString()
+      })
+      .eq("id", true)
+      .throwOnError();
+
+    message.textContent = "Pontos de bonus removidos. Os palpites continuam salvos.";
+    await loadAll();
+  } catch (error) {
+    message.textContent = "Erro ao remover pontos de bonus.";
+    console.error(error);
+  }
+});
+
 specialParticipantSelect.addEventListener("change", () => {
   fillSpecialForm(specialParticipantSelect.value);
 });
@@ -1067,66 +1170,24 @@ adminPredictionsTable.addEventListener("change", async (event) => {
 adminBonusTable.addEventListener("click", async (event) => {
   if (!requireAdmin()) return;
 
-  const clearPointsButton = event.target.closest("[data-clear-bonus-points]");
-  if (clearPointsButton) {
-    try {
-      await supabaseClient
-        .from("participants")
-        .update({
-          manual_bonus_points: null
-        })
-        .eq("id", clearPointsButton.dataset.clearBonusPoints)
-        .throwOnError();
-      await loadAll();
-    } catch (error) {
-      setStatus("Erro ao zerar pontos do bonus.", "error");
-      console.error(error);
-    }
-    return;
-  }
-
   const clearPicksButton = event.target.closest("[data-clear-bonus-picks]");
-  if (clearPicksButton) {
-    if (!window.confirm("Remover os palpites de bonus desse participante?")) return;
-
-    try {
-      await supabaseClient
-        .from("participants")
-        .update({
-          champion_pick: null,
-          top_scorer_pick: null,
-          finalist_one_pick: null,
-          finalist_two_pick: null
-        })
-        .eq("id", clearPicksButton.dataset.clearBonusPicks)
-        .throwOnError();
-      await loadAll();
-    } catch (error) {
-      setStatus("Erro ao remover palpites de bonus.", "error");
-      console.error(error);
-    }
-    return;
-  }
-
-  const button = event.target.closest("[data-save-bonus-participant]");
-  if (!button) return;
-
-  const row = button.closest("tr");
-  const select = row.querySelector("[data-bonus-participant]");
+  if (!clearPicksButton) return;
+  if (!window.confirm("Remover os palpites de bonus desse participante?")) return;
 
   try {
     await supabaseClient
       .from("participants")
       .update({
-        manual_bonus_points: Number(select.value || 0)
+        champion_pick: null,
+        top_scorer_pick: null,
+        finalist_one_pick: null,
+        finalist_two_pick: null
       })
-      .eq("id", button.dataset.saveBonusParticipant)
+      .eq("id", clearPicksButton.dataset.clearBonusPicks)
       .throwOnError();
-    button.textContent = "Salvo";
     await loadAll();
   } catch (error) {
-    setStatus("Erro ao salvar bonus manual. Rode a migration manual_bonus_points no Supabase.", "error");
-    window.alert("Nao consegui salvar o bonus. Rode o arquivo supabase-manual-bonus-migration.sql no Supabase.");
+    setStatus("Erro ao remover palpites de bonus.", "error");
     console.error(error);
   }
 });
@@ -1152,7 +1213,7 @@ adminLogoutButton.addEventListener("click", async () => {
 });
 
 function subscribeToChanges() {
-  ["participants", "matches", "predictions"].forEach((table) => {
+  ["participants", "matches", "predictions", "special_results"].forEach((table) => {
     supabaseClient
       .channel(`${table}-realtime`)
       .on("postgres_changes", { event: "*", schema: "public", table }, () => loadAll())

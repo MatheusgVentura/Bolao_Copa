@@ -631,6 +631,15 @@ td {
   margin-bottom: 14px;
 }
 
+#specialResultForm {
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  align-items: end;
+}
+
+#specialResultMessage {
+  grid-column: 1 / -1;
+}
+
 .admin-subsection {
   margin-top: 22px;
   padding-top: 18px;
