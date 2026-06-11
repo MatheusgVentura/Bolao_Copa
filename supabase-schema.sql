@@ -31,12 +31,14 @@ create table if not exists public.matches (
   away_team text not null check (char_length(away_team) between 1 and 40),
   home_score integer check (home_score between 0 and 30),
   away_score integer check (away_score between 0 and 30),
+  predictions_released boolean not null default false,
   kickoff_at timestamptz,
   venue text check (char_length(venue) <= 80),
   created_at timestamptz not null default now()
 );
 
 alter table public.matches add column if not exists source_id text unique;
+alter table public.matches add column if not exists predictions_released boolean not null default false;
 alter table public.matches add column if not exists kickoff_at timestamptz;
 alter table public.matches add column if not exists venue text check (char_length(venue) <= 80);
 

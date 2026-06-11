@@ -30,6 +30,8 @@ const rankingTable = document.querySelector("#rankingTable");
 const rankingEmpty = document.querySelector("#rankingEmpty");
 const adminStageSelect = document.querySelector("#adminStageSelect");
 const adminMatchSelect = document.querySelector("#adminMatchSelect");
+const releasePredictionsButton = document.querySelector("#releasePredictionsButton");
+const releasePredictionsMessage = document.querySelector("#releasePredictionsMessage");
 const adminPredictionsTable = document.querySelector("#adminPredictionsTable");
 const adminEmpty = document.querySelector("#adminEmpty");
 const adminBonusTable = document.querySelector("#adminBonusTable");
@@ -125,6 +127,18 @@ function automaticPointsFor(prediction, match) {
 
   if (predictionResult === officialResult) return 1;
   return 0;
+}
+
+function arePredictionsReleased(match) {
+  return Boolean(match?.predictions_released);
+}
+
+function canShowMatchPredictions(match) {
+  return isAdmin || hasOfficialResult(match) || arePredictionsReleased(match);
+}
+
+function canShowMatchPoints(match) {
+  return isAdmin || hasOfficialResult(match);
 }
 
 function normalizeText(value) {
@@ -486,7 +500,8 @@ function renderMatches() {
       ? `Palpites ate ${predictionDeadlineText(match)}`
       : `Palpites encerrados em ${predictionDeadlineText(match)}`;
 
-    const canShowPredictions = isAdmin || hasOfficialResult(match);
+    const canShowPredictions = canShowMatchPredictions(match);
+    const canShowPoints = canShowMatchPoints(match);
     const predictionsContent = matchPredictions.length
       ? matchPredictions.map((prediction) => {
         const participant = participants.find((item) => item.id === prediction.participant_id);
@@ -495,7 +510,7 @@ function renderMatches() {
             <div>
               <span>${escapeHtml(participant?.name || "Participante removido")}</span>
               <strong>${canShowPredictions ? `${prediction.home_score} x ${prediction.away_score}` : "* x *"}</strong>
-              <em>${canShowPredictions ? `${points} pts` : "-- pts"}</em>
+              <em>${canShowPoints ? `${points} pts` : "-- pts"}</em>
               <button class="danger mini-action admin-action" type="button" data-remove-prediction="${prediction.id}">Remover</button>
             </div>
           `;
@@ -542,6 +557,18 @@ function finalPointsFor(prediction, match) {
 function renderAdminPanel() {
   adminPredictionsTable.innerHTML = "";
   adminBonusTable.innerHTML = "";
+
+  const selectedMatch = matches.find((match) => match.id === selectedAdminMatch);
+  const predictionsReleased = arePredictionsReleased(selectedMatch);
+  releasePredictionsButton.disabled = !selectedMatch;
+  releasePredictionsButton.textContent = predictionsReleased
+    ? "Ocultar palpites do geral"
+    : "Liberar palpites para geral";
+  releasePredictionsMessage.textContent = selectedMatch
+    ? predictionsReleased
+      ? "Palpites liberados para todos nesse jogo."
+      : "Palpites ainda ocultos para os participantes."
+    : "Escolha um jogo para liberar os palpites.";
 
   const visiblePredictions = predictions
     .map((prediction) => {
@@ -1187,6 +1214,36 @@ adminStageSelect.addEventListener("change", () => {
 adminMatchSelect.addEventListener("change", () => {
   selectedAdminMatch = adminMatchSelect.value;
   renderAdminPanel();
+});
+
+releasePredictionsButton.addEventListener("click", async () => {
+  if (!requireAdmin()) return;
+
+  const selectedMatch = matches.find((match) => match.id === selectedAdminMatch);
+  if (!selectedMatch) {
+    releasePredictionsMessage.textContent = "Escolha um jogo para liberar os palpites.";
+    return;
+  }
+
+  const nextValue = !arePredictionsReleased(selectedMatch);
+  releasePredictionsButton.disabled = true;
+
+  try {
+    await supabaseClient
+      .from("matches")
+      .update({ predictions_released: nextValue })
+      .eq("id", selectedMatch.id)
+      .throwOnError();
+    releasePredictionsMessage.textContent = nextValue
+      ? "Palpites liberados para todos."
+      : "Palpites ocultos novamente.";
+    await loadAll();
+  } catch (error) {
+    releasePredictionsMessage.textContent = "Erro ao alterar liberacao. Rode o SQL atualizado no Supabase.";
+    console.error(error);
+  } finally {
+    releasePredictionsButton.disabled = false;
+  }
 });
 
 adminPredictionsTable.addEventListener("change", async (event) => {

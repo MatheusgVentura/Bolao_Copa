@@ -888,9 +888,15 @@ td {
 
 .admin-tools {
   display: grid;
-  grid-template-columns: minmax(220px, 280px) minmax(260px, 1fr);
+  grid-template-columns: minmax(220px, 280px) minmax(260px, 1fr) minmax(210px, 260px);
   gap: 12px;
   margin-bottom: 14px;
+  align-items: end;
+}
+
+.admin-release-control .hint {
+  min-height: 18px;
+  margin-top: 8px;
 }
 
 #specialResultForm {
