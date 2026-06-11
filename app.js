@@ -1,5 +1,5 @@
 const ENTRY_VALUE = 100;
-const PREDICTION_DEADLINE_MS = 30 * 60 * 1000;
+const PREDICTION_DEADLINE_MS = 1 * 60 * 1000;
 const SPECIAL_BONUS_DEADLINE = new Date("2026-06-10T23:59:59-03:00");
 
 const participantForm = document.querySelector("#participantForm");
@@ -856,7 +856,7 @@ predictionForm.addEventListener("submit", async (event) => {
   }
 
   if (!canPredictMatch(selectedMatch)) {
-    message.textContent = "Palpites desse jogo encerram 30 minutos antes da partida.";
+    message.textContent = "Palpites desse jogo encerram 1 minuto antes da partida.";
     return;
   }
 
