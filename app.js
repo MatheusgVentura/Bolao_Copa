@@ -157,6 +157,10 @@ function isSpecialBonusOpen() {
   return Date.now() <= SPECIAL_BONUS_DEADLINE.getTime();
 }
 
+function canShowSpecialBonusPicks() {
+  return isAdmin || !isSpecialBonusOpen() || specialResults?.bonus_active;
+}
+
 function specialBonusDeadlineText() {
   return new Intl.DateTimeFormat("pt-BR", {
     day: "2-digit",
@@ -223,7 +227,7 @@ function matchPointsForParticipant(participant) {
 
 function fillSpecialForm(participantId) {
   const participant = participants.find((item) => item.id === participantId);
-  const canShowSavedBonus = isAdmin || !hasSpecialBonusPicks(participant);
+  const canShowSavedBonus = canShowSpecialBonusPicks() || !hasSpecialBonusPicks(participant);
 
   if (!canShowSavedBonus) {
     document.querySelector("#championPick").value = "";
@@ -672,7 +676,7 @@ async function loadAll() {
 
   specialResults = specialResultsResult.data || null;
 
-  const participantColumns = isAdmin || specialResults?.bonus_active
+  const participantColumns = canShowSpecialBonusPicks()
     ? "*"
     : "id,name,paid,created_at";
   const [participantsResult, matchesResult, predictionsResult] = await Promise.all([
