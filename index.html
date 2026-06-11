@@ -274,6 +274,31 @@
         <div class="admin-subsection">
           <h3>Bonus dos participantes</h3>
           <p>5 pontos por artilheiro, 3 por finalista correto e 5 pontos para quem acertar o campeao dessa final.</p>
+          <form class="admin-tools admin-bonus-editor" id="adminBonusForm">
+            <div>
+              <label for="adminBonusParticipantSelect">Participante</label>
+              <select id="adminBonusParticipantSelect" required></select>
+            </div>
+            <div>
+              <label for="adminTopScorerPick">Artilheiro</label>
+              <input id="adminTopScorerPick" maxlength="60" placeholder="Ex: Mbappe" />
+            </div>
+            <div>
+              <label for="adminFinalistOnePick">Finalista 1</label>
+              <input id="adminFinalistOnePick" maxlength="40" placeholder="Brasil" />
+            </div>
+            <div>
+              <label for="adminFinalistTwoPick">Finalista 2</label>
+              <input id="adminFinalistTwoPick" maxlength="40" placeholder="Franca" />
+            </div>
+            <div>
+              <label for="adminChampionPick">Campeao da final</label>
+              <input id="adminChampionPick" maxlength="40" placeholder="Ex: Brasil" />
+            </div>
+            <button class="primary compact-save" type="submit">Salvar bonus do participante</button>
+            <p class="hint" id="adminBonusMessage" role="status" aria-live="polite"></p>
+          </form>
+
           <form class="admin-tools" id="specialResultForm">
             <div>
               <label for="officialTopScorer">Artilheiro oficial</label>

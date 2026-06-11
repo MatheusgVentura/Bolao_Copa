@@ -908,7 +908,20 @@ td {
   background: linear-gradient(180deg, rgba(255, 244, 216, 0.42), rgba(255, 255, 255, 0.68));
 }
 
+.admin-bonus-editor {
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  align-items: end;
+  border: 1px solid rgba(8, 115, 78, 0.18);
+  border-radius: var(--radius);
+  padding: 14px;
+  background: linear-gradient(180deg, rgba(229, 245, 237, 0.58), rgba(255, 255, 255, 0.72));
+}
+
 #specialResultMessage {
+  grid-column: 1 / -1;
+}
+
+#adminBonusMessage {
   grid-column: 1 / -1;
 }
 

@@ -8,6 +8,7 @@ const predictionForm = document.querySelector("#predictionForm");
 const resultForm = document.querySelector("#resultForm");
 const specialResultForm = document.querySelector("#specialResultForm");
 const specialPredictionForm = document.querySelector("#specialPredictionForm");
+const adminBonusForm = document.querySelector("#adminBonusForm");
 const refreshButton = document.querySelector("#refreshButton");
 const importMatchesButton = document.querySelector("#importMatchesButton");
 const adminLoginButton = document.querySelector("#adminLoginButton");
@@ -36,6 +37,8 @@ const adminPredictionsTable = document.querySelector("#adminPredictionsTable");
 const adminEmpty = document.querySelector("#adminEmpty");
 const adminBonusTable = document.querySelector("#adminBonusTable");
 const adminBonusEmpty = document.querySelector("#adminBonusEmpty");
+const adminBonusParticipantSelect = document.querySelector("#adminBonusParticipantSelect");
+const adminBonusMessage = document.querySelector("#adminBonusMessage");
 const publicBonusPanel = document.querySelector("#publicBonusPanel");
 const publicBonusTable = document.querySelector("#publicBonusTable");
 const publicBonusEmpty = document.querySelector("#publicBonusEmpty");
@@ -250,6 +253,15 @@ function fillSpecialForm(participantId) {
   document.querySelector("#finalistTwoPick").value = participant?.finalist_two_pick || "";
 }
 
+function fillAdminBonusForm(participantId) {
+  const participant = participants.find((item) => item.id === participantId);
+
+  document.querySelector("#adminChampionPick").value = participant?.champion_pick || "";
+  document.querySelector("#adminTopScorerPick").value = participant?.top_scorer_pick || "";
+  document.querySelector("#adminFinalistOnePick").value = participant?.finalist_one_pick || "";
+  document.querySelector("#adminFinalistTwoPick").value = participant?.finalist_two_pick || "";
+}
+
 function fillSpecialResultForm() {
   document.querySelector("#officialTopScorer").value = specialResults?.top_scorer || "";
   document.querySelector("#officialFinalistOne").value = specialResults?.finalist_one || "";
@@ -380,6 +392,7 @@ function parseOpenFootballDate(date, time) {
 function renderSelects() {
   const selectedParticipant = participantSelect.value;
   const selectedSpecialParticipant = specialParticipantSelect.value;
+  const selectedAdminBonusParticipant = adminBonusParticipantSelect.value;
   const selectedPredictionDay = predictionStageSelect.value;
   const selectedMatch = matchSelect.value;
   const selectedResultDay = resultStageSelect.value;
@@ -391,9 +404,12 @@ function renderSelects() {
   participantSelect.appendChild(option("Escolha o participante", ""));
   specialParticipantSelect.innerHTML = "";
   specialParticipantSelect.appendChild(option("Escolha o participante", ""));
+  adminBonusParticipantSelect.innerHTML = "";
+  adminBonusParticipantSelect.appendChild(option("Escolha o participante", ""));
   participants.forEach((participant) => {
     participantSelect.appendChild(option(participant.name, participant.id));
     specialParticipantSelect.appendChild(option(participant.name, participant.id));
+    adminBonusParticipantSelect.appendChild(option(participant.name, participant.id));
   });
   participantSelect.value = participants.some((participant) => participant.id === selectedParticipant)
     ? selectedParticipant
@@ -401,7 +417,11 @@ function renderSelects() {
   specialParticipantSelect.value = participants.some((participant) => participant.id === selectedSpecialParticipant)
     ? selectedSpecialParticipant
     : "";
+  adminBonusParticipantSelect.value = participants.some((participant) => participant.id === selectedAdminBonusParticipant)
+    ? selectedAdminBonusParticipant
+    : "";
   fillSpecialForm(specialParticipantSelect.value);
+  fillAdminBonusForm(adminBonusParticipantSelect.value);
 
   const dayOptions = orderedMatchDays().map((day) => ({ label: dayLabel(day), value: day }));
   const fallbackDay = dayOptions[0]?.value || "";
@@ -1096,6 +1116,40 @@ disableBonusPointsButton.addEventListener("click", async () => {
 
 specialParticipantSelect.addEventListener("change", () => {
   fillSpecialForm(specialParticipantSelect.value);
+});
+
+adminBonusParticipantSelect.addEventListener("change", () => {
+  fillAdminBonusForm(adminBonusParticipantSelect.value);
+  adminBonusMessage.textContent = "";
+});
+
+adminBonusForm.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  if (!requireAdmin()) return;
+
+  if (!adminBonusParticipantSelect.value) {
+    adminBonusMessage.textContent = "Escolha o participante para salvar o bonus.";
+    return;
+  }
+
+  try {
+    await supabaseClient
+      .from("participants")
+      .update({
+        champion_pick: document.querySelector("#adminChampionPick").value.trim() || null,
+        top_scorer_pick: document.querySelector("#adminTopScorerPick").value.trim() || null,
+        finalist_one_pick: document.querySelector("#adminFinalistOnePick").value.trim() || null,
+        finalist_two_pick: document.querySelector("#adminFinalistTwoPick").value.trim() || null
+      })
+      .eq("id", adminBonusParticipantSelect.value)
+      .throwOnError();
+
+    adminBonusMessage.textContent = "Bonus do participante salvo.";
+    await loadAll();
+  } catch (error) {
+    adminBonusMessage.textContent = "Erro ao salvar bonus do participante.";
+    console.error(error);
+  }
 });
 
 specialPredictionForm.addEventListener("submit", async (event) => {
