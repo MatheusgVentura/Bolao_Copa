@@ -1,18 +1,19 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="pt-BR">
   <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Bolao da Copa</title>
-    <meta name="description" content="Bolao privado da Copa com palpites, ranking e painel admin." />
-    <meta property="og:title" content="Bolao da Copa" />
-    <meta property="og:description" content="Palpites por jogo, ranking e bonus especiais." />
-    <link rel="icon" type="image/png" href="soccer-ball.png" />
-    <link rel="apple-touch-icon" href="soccer-ball.png" />
-    <link rel="stylesheet" href="styles.css" />
+    <meta name="description" content="Bolao privado da Copa com palpites, ranking e painel admin.">
+    <meta property="og:title" content="Bolao da Copa">
+    <meta property="og:description" content="Palpites por jogo, ranking e bonus especiais.">
+    <link rel="icon" type="image/png" href="soccer-ball.png">
+    <link rel="apple-touch-icon" href="soccer-ball.png">
+    <link rel="stylesheet" href="styles.css">
   </head>
   <body>
-    <main class="page">
+    <a class="skip-link" href="#main-content">Pular para o conteudo principal</a>
+    <main class="page" id="main-content" tabindex="-1">
       <section class="panel intro" aria-labelledby="page-title">
         <div>
           <p class="eyebrow">Bolao privado do O</p>
@@ -23,7 +24,7 @@
           </p>
         </div>
 
-        <div class="stats" aria-label="Resumo do bolao">
+        <div class="stats" role="group" aria-label="Resumo do bolao">
           <div>
             <span id="totalParticipants">0</span>
             <small>participantes</small>
@@ -53,10 +54,10 @@
         <form class="panel form-panel participant-only" id="participantForm">
           <h2>Participante</h2>
           <label for="participantName">Nome</label>
-          <input id="participantName" maxlength="40" placeholder="Ex: Matheus" required />
+          <input id="participantName" type="text" maxlength="40" placeholder="Ex: Matheus" required>
 
           <label class="checkbox">
-            <input id="participantPaid" type="checkbox" required />
+            <input id="participantPaid" type="checkbox" required>
             <span>Ja pagou os R$100</span>
           </label>
 
@@ -75,19 +76,19 @@
 
           <h3>Adicionar manualmente</h3>
           <label for="stage">Fase</label>
-          <input id="stage" maxlength="30" placeholder="Ex: Grupo A" required />
+          <input id="stage" type="text" maxlength="30" placeholder="Ex: Grupo A" required>
 
           <label for="kickoffAt">Data e horario</label>
-          <input id="kickoffAt" type="datetime-local" />
+          <input id="kickoffAt" type="datetime-local">
 
           <div class="split">
             <div>
               <label for="homeTeam">Selecao A</label>
-              <input id="homeTeam" maxlength="40" placeholder="Brasil" required />
+              <input id="homeTeam" type="text" maxlength="40" placeholder="Brasil" required>
             </div>
             <div>
               <label for="awayTeam">Selecao B</label>
-              <input id="awayTeam" maxlength="40" placeholder="Argentina" required />
+              <input id="awayTeam" type="text" maxlength="40" placeholder="Argentina" required>
             </div>
           </div>
 
@@ -105,12 +106,13 @@
 
           <label for="matchSelect">Jogo</label>
           <select id="matchSelect" required></select>
-          <p class="hint">Palpites encerram 1 minuto antes do inicio da partida.</p>
+          <p class="hint" id="predictionDeadlineHint">Palpites encerram 1 minuto antes do inicio da partida.</p>
 
-          <div class="score-row">
-            <input id="predictionHomeScore" type="number" min="0" max="30" required aria-label="Gols da selecao A" />
+          <div class="score-row" role="group" aria-labelledby="predictionScoreLabel" aria-describedby="predictionDeadlineHint">
+            <span class="visually-hidden" id="predictionScoreLabel">Placar do palpite</span>
+            <input id="predictionHomeScore" type="number" min="0" max="30" required aria-label="Gols da selecao A no palpite">
             <span>x</span>
-            <input id="predictionAwayScore" type="number" min="0" max="30" required aria-label="Gols da selecao B" />
+            <input id="predictionAwayScore" type="number" min="0" max="30" required aria-label="Gols da selecao B no palpite">
           </div>
 
           <button class="primary" type="submit">Salvar palpite</button>
@@ -125,44 +127,16 @@
           <label for="resultMatchSelect">Jogo</label>
           <select id="resultMatchSelect" required></select>
 
-          <div class="score-row">
-            <input id="resultHomeScore" type="number" min="0" max="30" required aria-label="Gols oficiais da selecao A" />
+          <div class="score-row" role="group" aria-labelledby="resultScoreLabel">
+            <span class="visually-hidden" id="resultScoreLabel">Placar oficial</span>
+            <input id="resultHomeScore" type="number" min="0" max="30" required aria-label="Gols oficiais da selecao A">
             <span>x</span>
-            <input id="resultAwayScore" type="number" min="0" max="30" required aria-label="Gols oficiais da selecao B" />
+            <input id="resultAwayScore" type="number" min="0" max="30" required aria-label="Gols oficiais da selecao B">
           </div>
 
           <button class="primary" type="submit">Salvar resultado</button>
           <button class="secondary block" id="clearResultButton" type="button">Remover resultado</button>
           <p class="hint" id="resultMessage" role="status" aria-live="polite"></p>
-        </form>
-
-        <form class="panel form-panel participant-only" id="specialPredictionForm">
-          <h2>Bonus especiais</h2>
-          <p class="deadline-notice">
-            Atencao: os bonus podem ser salvos ate 10/06/2026 as 23:59. Depois desse horario nao sera possivel preencher ou alterar.
-          </p>
-          <label for="specialParticipantSelect">Participante</label>
-          <select id="specialParticipantSelect" required></select>
-
-          <label for="topScorerPick">Artilheiro</label>
-          <input id="topScorerPick" maxlength="60" placeholder="Ex: Mbappe" />
-
-          <div class="split">
-            <div>
-              <label for="finalistOnePick">Finalista 1</label>
-              <input id="finalistOnePick" maxlength="40" placeholder="Brasil" />
-            </div>
-            <div>
-              <label for="finalistTwoPick">Finalista 2</label>
-              <input id="finalistTwoPick" maxlength="40" placeholder="Franca" />
-            </div>
-          </div>
-
-          <label for="championPick">Campeao da final</label>
-          <input id="championPick" maxlength="40" placeholder="Ex: Brasil" />
-
-          <button class="primary" type="submit">Salvar bonus</button>
-          <p class="hint" id="specialPredictionMessage" role="status" aria-live="polite"></p>
         </form>
 
       </section>
@@ -192,8 +166,8 @@
             </div>
             <button class="secondary" id="refreshButton" type="button">Atualizar</button>
           </div>
-          <div class="group-tabs" id="groupTabs" aria-label="Filtrar jogos por dia"></div>
-          <div id="matchesList" class="matches-list"></div>
+          <div class="group-tabs" id="groupTabs" role="group" aria-label="Filtrar jogos por dia"></div>
+          <div id="matchesList" class="matches-list" aria-live="polite"></div>
           <div class="empty" id="matchesEmpty">
             <strong>Nenhum jogo cadastrado.</strong>
             <span>Cadastre os jogos para o pessoal palpitar.</span>
@@ -210,12 +184,13 @@
         </div>
         <div class="table-wrap">
           <table>
+            <caption>Bonus especiais salvos pelos participantes</caption>
             <thead>
               <tr>
-                <th>Participante</th>
-                <th>Artilheiro</th>
-                <th>Finalistas</th>
-                <th>Campeao da final</th>
+                <th scope="col">Participante</th>
+                <th scope="col">Artilheiro</th>
+                <th scope="col">Finalistas</th>
+                <th scope="col">Campeao da final</th>
               </tr>
             </thead>
             <tbody id="publicBonusTable"></tbody>
@@ -252,15 +227,16 @@
 
         <div class="table-wrap">
           <table>
+            <caption>Palpites do jogo selecionado para conferencia do admin</caption>
             <thead>
               <tr>
-                <th>Participante</th>
-                <th>Jogo</th>
-                <th>Palpite</th>
-                <th>Resultado</th>
-                <th>Auto</th>
-                <th>Pontos finais</th>
-                <th>Conferido</th>
+                <th scope="col">Participante</th>
+                <th scope="col">Jogo</th>
+                <th scope="col">Palpite</th>
+                <th scope="col">Resultado</th>
+                <th scope="col">Auto</th>
+                <th scope="col">Pontos finais</th>
+                <th scope="col">Conferido</th>
               </tr>
             </thead>
             <tbody id="adminPredictionsTable"></tbody>
@@ -281,19 +257,19 @@
             </div>
             <div>
               <label for="adminTopScorerPick">Artilheiro</label>
-              <input id="adminTopScorerPick" maxlength="60" placeholder="Ex: Mbappe" />
+              <input id="adminTopScorerPick" type="text" maxlength="60" placeholder="Ex: Mbappe">
             </div>
             <div>
               <label for="adminFinalistOnePick">Finalista 1</label>
-              <input id="adminFinalistOnePick" maxlength="40" placeholder="Brasil" />
+              <input id="adminFinalistOnePick" type="text" maxlength="40" placeholder="Brasil">
             </div>
             <div>
               <label for="adminFinalistTwoPick">Finalista 2</label>
-              <input id="adminFinalistTwoPick" maxlength="40" placeholder="Franca" />
+              <input id="adminFinalistTwoPick" type="text" maxlength="40" placeholder="Franca">
             </div>
             <div>
               <label for="adminChampionPick">Campeao da final</label>
-              <input id="adminChampionPick" maxlength="40" placeholder="Ex: Brasil" />
+              <input id="adminChampionPick" type="text" maxlength="40" placeholder="Ex: Brasil">
             </div>
             <button class="primary compact-save" type="submit">Salvar bonus do participante</button>
             <p class="hint" id="adminBonusMessage" role="status" aria-live="polite"></p>
@@ -302,22 +278,22 @@
           <form class="admin-tools" id="specialResultForm">
             <div>
               <label for="officialTopScorer">Artilheiro oficial</label>
-              <input id="officialTopScorer" maxlength="60" placeholder="Mbappe" />
+              <input id="officialTopScorer" type="text" maxlength="60" placeholder="Mbappe">
             </div>
             <div>
               <label for="officialFinalistOne">Finalista oficial 1</label>
-              <input id="officialFinalistOne" maxlength="40" placeholder="Brasil" />
+              <input id="officialFinalistOne" type="text" maxlength="40" placeholder="Brasil">
             </div>
             <div>
               <label for="officialFinalistTwo">Finalista oficial 2</label>
-              <input id="officialFinalistTwo" maxlength="40" placeholder="Franca" />
+              <input id="officialFinalistTwo" type="text" maxlength="40" placeholder="Franca">
             </div>
             <div>
               <label for="officialChampion">Campeao oficial</label>
-              <input id="officialChampion" maxlength="40" placeholder="Brasil" />
+              <input id="officialChampion" type="text" maxlength="40" placeholder="Brasil">
             </div>
             <label class="checkbox compact-check">
-              <input id="officialBonusActive" type="checkbox" />
+              <input id="officialBonusActive" type="checkbox">
               <span>Ativar bonus</span>
             </label>
             <button class="primary compact-save" type="submit">Salvar oficiais</button>
@@ -327,14 +303,15 @@
           </form>
           <div class="table-wrap">
             <table>
+              <caption>Bonus especiais salvos por participante no painel admin</caption>
               <thead>
                 <tr>
-                  <th>Participante</th>
-                  <th>Artilheiro</th>
-                  <th>Finalistas</th>
-                  <th>Campeao da final</th>
-                  <th>Bonus atual</th>
-                  <th>Palpite</th>
+                  <th scope="col">Participante</th>
+                  <th scope="col">Artilheiro</th>
+                  <th scope="col">Finalistas</th>
+                  <th scope="col">Campeao da final</th>
+                  <th scope="col">Bonus atual</th>
+                  <th scope="col">Palpite</th>
                 </tr>
               </thead>
               <tbody id="adminBonusTable"></tbody>

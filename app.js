@@ -7,7 +7,6 @@ const matchForm = document.querySelector("#matchForm");
 const predictionForm = document.querySelector("#predictionForm");
 const resultForm = document.querySelector("#resultForm");
 const specialResultForm = document.querySelector("#specialResultForm");
-const specialPredictionForm = document.querySelector("#specialPredictionForm");
 const adminBonusForm = document.querySelector("#adminBonusForm");
 const refreshButton = document.querySelector("#refreshButton");
 const importMatchesButton = document.querySelector("#importMatchesButton");
@@ -22,7 +21,6 @@ const totalMatches = document.querySelector("#totalMatches");
 const totalPrize = document.querySelector("#totalPrize");
 const connectionStatus = document.querySelector("#connectionStatus");
 const participantSelect = document.querySelector("#participantSelect");
-const specialParticipantSelect = document.querySelector("#specialParticipantSelect");
 const predictionStageSelect = document.querySelector("#predictionStageSelect");
 const matchSelect = document.querySelector("#matchSelect");
 const resultStageSelect = document.querySelector("#resultStageSelect");
@@ -235,24 +233,6 @@ function matchPointsForParticipant(participant) {
     }, 0);
 }
 
-function fillSpecialForm(participantId) {
-  const participant = participants.find((item) => item.id === participantId);
-  const canShowSavedBonus = canShowSpecialBonusPicks() || !hasSpecialBonusPicks(participant);
-
-  if (!canShowSavedBonus) {
-    document.querySelector("#championPick").value = "";
-    document.querySelector("#topScorerPick").value = "";
-    document.querySelector("#finalistOnePick").value = "";
-    document.querySelector("#finalistTwoPick").value = "";
-    return;
-  }
-
-  document.querySelector("#championPick").value = participant?.champion_pick || "";
-  document.querySelector("#topScorerPick").value = participant?.top_scorer_pick || "";
-  document.querySelector("#finalistOnePick").value = participant?.finalist_one_pick || "";
-  document.querySelector("#finalistTwoPick").value = participant?.finalist_two_pick || "";
-}
-
 function fillAdminBonusForm(participantId) {
   const participant = participants.find((item) => item.id === participantId);
 
@@ -391,7 +371,6 @@ function parseOpenFootballDate(date, time) {
 
 function renderSelects() {
   const selectedParticipant = participantSelect.value;
-  const selectedSpecialParticipant = specialParticipantSelect.value;
   const selectedAdminBonusParticipant = adminBonusParticipantSelect.value;
   const selectedPredictionDay = predictionStageSelect.value;
   const selectedMatch = matchSelect.value;
@@ -402,25 +381,18 @@ function renderSelects() {
 
   participantSelect.innerHTML = "";
   participantSelect.appendChild(option("Escolha o participante", ""));
-  specialParticipantSelect.innerHTML = "";
-  specialParticipantSelect.appendChild(option("Escolha o participante", ""));
   adminBonusParticipantSelect.innerHTML = "";
   adminBonusParticipantSelect.appendChild(option("Escolha o participante", ""));
   participants.forEach((participant) => {
     participantSelect.appendChild(option(participant.name, participant.id));
-    specialParticipantSelect.appendChild(option(participant.name, participant.id));
     adminBonusParticipantSelect.appendChild(option(participant.name, participant.id));
   });
   participantSelect.value = participants.some((participant) => participant.id === selectedParticipant)
     ? selectedParticipant
     : "";
-  specialParticipantSelect.value = participants.some((participant) => participant.id === selectedSpecialParticipant)
-    ? selectedSpecialParticipant
-    : "";
   adminBonusParticipantSelect.value = participants.some((participant) => participant.id === selectedAdminBonusParticipant)
     ? selectedAdminBonusParticipant
     : "";
-  fillSpecialForm(specialParticipantSelect.value);
   fillAdminBonusForm(adminBonusParticipantSelect.value);
 
   const dayOptions = orderedMatchDays().map((day) => ({ label: dayLabel(day), value: day }));
@@ -476,17 +448,19 @@ function renderRanking() {
   rankingTable.innerHTML = "";
 
   calculateRanking().forEach((participant, index) => {
+    const participantName = escapeHtml(participant.name);
     const row = document.createElement("article");
     row.className = "ranking-item";
+    row.setAttribute("aria-label", `${participant.name}, posicao ${index + 1}, ${participant.total} pontos`);
     row.innerHTML = `
-      <span class="rank-position">${index + 1}</span>
+      <span class="rank-position" aria-label="Posicao ${index + 1}">${index + 1}</span>
       <div class="rank-main">
-        <strong>${escapeHtml(participant.name)}</strong>
+        <strong>${participantName}</strong>
         <small>${participant.matchPoints} pontos - ${participant.bonusPoints} bonus</small>
       </div>
       <strong class="rank-score">${participant.total}</strong>
       <span class="badge ${participant.paid ? "paid" : "pending"}">${participant.paid ? "Pago" : "Pendente"}</span>
-      <button class="danger admin-action" type="button" data-remove-participant="${participant.id}">Remover</button>
+      <button class="danger admin-action" type="button" data-remove-participant="${participant.id}" aria-label="Remover participante ${participantName}">Remover</button>
     `;
     rankingTable.appendChild(row);
   });
@@ -511,6 +485,7 @@ function renderMatches() {
     button.type = "button";
     button.className = tab.value === selectedDay ? "active" : "";
     button.dataset.day = tab.value;
+    button.setAttribute("aria-pressed", tab.value === selectedDay ? "true" : "false");
     button.textContent = tab.label;
     groupTabs.appendChild(button);
   });
@@ -518,6 +493,9 @@ function renderMatches() {
   const visibleMatches = matches.filter((match) => matchDayKey(match) === selectedDay);
 
   visibleMatches.forEach((match) => {
+    const matchLabel = `${match.home_team} x ${match.away_team}`;
+    const escapedMatchLabel = escapeHtml(matchLabel);
+    const escapedMatchLabelForAttribute = escapeHtml(matchLabel);
     const matchPredictions = predictions.filter((prediction) => prediction.match_id === match.id);
     const result =
       match.home_score === null || match.away_score === null
@@ -536,13 +514,15 @@ function renderMatches() {
     const predictionsContent = matchPredictions.length
       ? matchPredictions.map((prediction) => {
         const participant = participants.find((item) => item.id === prediction.participant_id);
+        const participantName = participant?.name || "Participante removido";
+        const escapedParticipantName = escapeHtml(participantName);
         const points = pointsFor(prediction, match);
         return `
             <div>
-              <span>${escapeHtml(participant?.name || "Participante removido")}</span>
+              <span>${escapedParticipantName}</span>
               <strong>${canShowPredictions ? `${prediction.home_score} x ${prediction.away_score}` : "* x *"}</strong>
               <em>${canShowPoints ? `${points} pts` : "-- pts"}</em>
-              <button class="danger mini-action admin-action" type="button" data-remove-prediction="${prediction.id}">Remover</button>
+              <button class="danger mini-action admin-action" type="button" data-remove-prediction="${prediction.id}" aria-label="Remover palpite de ${escapedParticipantName} em ${escapedMatchLabelForAttribute}">Remover</button>
             </div>
           `;
       }).join("")
@@ -550,10 +530,11 @@ function renderMatches() {
 
     const card = document.createElement("article");
     card.className = "match-card";
+    card.setAttribute("aria-label", `${matchLabel}. ${predictionStatus}`);
     card.innerHTML = `
       <div class="match-top">
         <div>
-          <strong>${escapeHtml(match.home_team)} x ${escapeHtml(match.away_team)}</strong>
+          <strong>${escapedMatchLabel}</strong>
           <span>${escapeHtml(details)}</span>
           <span>${escapeHtml(predictionStatus)}</span>
         </div>
@@ -561,9 +542,9 @@ function renderMatches() {
           <small>${match.home_score === null || match.away_score === null ? "Aberto" : "Final"}</small>
           <strong>${result}</strong>
         </div>
-        <button class="danger admin-action" type="button" data-remove-match="${match.id}">Remover</button>
+        <button class="danger admin-action" type="button" data-remove-match="${match.id}" aria-label="Remover jogo ${escapedMatchLabelForAttribute}">Remover</button>
       </div>
-      <div class="mini-table">
+      <div class="mini-table" aria-label="Palpites de ${escapedMatchLabelForAttribute}">
         ${predictionsContent}
       </div>
     `;
@@ -642,6 +623,10 @@ function renderAdminPanel() {
     .filter(({ match }) => match.id === selectedAdminMatch);
 
   visiblePredictions.forEach(({ prediction, match, participant }) => {
+    const participantName = participant?.name || "Participante removido";
+    const escapedParticipantName = escapeHtml(participantName);
+    const matchLabel = `${match.home_team} x ${match.away_team}`;
+    const escapedMatchLabel = escapeHtml(matchLabel);
     const autoPoints = automaticPointsFor(prediction, match);
     const finalPoints = finalPointsFor(prediction, match);
     const result =
@@ -651,13 +636,13 @@ function renderAdminPanel() {
     const row = document.createElement("tr");
 
     row.innerHTML = `
-      <td>${escapeHtml(participant?.name || "Participante removido")}</td>
-      <td>${escapeHtml(match.home_team)} x ${escapeHtml(match.away_team)}</td>
+      <td>${escapedParticipantName}</td>
+      <td>${escapedMatchLabel}</td>
       <td>${prediction.home_score} x ${prediction.away_score}</td>
       <td>${result}</td>
       <td>${autoPoints}</td>
       <td>
-        <select class="points-select" data-points-prediction="${prediction.id}">
+        <select class="points-select" data-points-prediction="${prediction.id}" aria-label="Pontos finais de ${escapedParticipantName} no jogo ${escapedMatchLabel}">
           ${[0, 1, 3].map((points) => `
             <option value="${points}" ${finalPoints === points ? "selected" : ""}>${points}</option>
           `).join("")}
@@ -665,7 +650,7 @@ function renderAdminPanel() {
       </td>
       <td>
         <label class="checkbox compact-check">
-          <input type="checkbox" data-reviewed-prediction="${prediction.id}" ${prediction.reviewed ? "checked" : ""} />
+          <input type="checkbox" data-reviewed-prediction="${prediction.id}" aria-label="Marcar palpite de ${escapedParticipantName} como conferido" ${prediction.reviewed ? "checked" : ""} />
           <span>OK</span>
         </label>
       </td>
@@ -681,15 +666,16 @@ function renderAdminPanel() {
   participantsWithBonus.forEach((participant) => {
     const row = document.createElement("tr");
     const finalists = finalistPicksText(participant);
+    const participantName = escapeHtml(participant.name);
 
     row.innerHTML = `
-      <td>${escapeHtml(participant.name)}</td>
+      <td>${participantName}</td>
       <td>${escapeHtml(participant.top_scorer_pick || "-")}</td>
       <td>${escapeHtml(finalists || "-")}</td>
       <td>${escapeHtml(participant.champion_pick || "-")}</td>
       <td>${specialBonusFor(participant)}</td>
       <td>
-        <button class="danger compact-save" type="button" data-clear-bonus-picks="${participant.id}">
+        <button class="danger compact-save" type="button" data-clear-bonus-picks="${participant.id}" aria-label="Apagar palpite de bonus de ${participantName}">
           Apagar palpite
         </button>
       </td>
@@ -1114,10 +1100,6 @@ disableBonusPointsButton.addEventListener("click", async () => {
   }
 });
 
-specialParticipantSelect.addEventListener("change", () => {
-  fillSpecialForm(specialParticipantSelect.value);
-});
-
 adminBonusParticipantSelect.addEventListener("change", () => {
   fillAdminBonusForm(adminBonusParticipantSelect.value);
   adminBonusMessage.textContent = "";
@@ -1148,63 +1130,6 @@ adminBonusForm.addEventListener("submit", async (event) => {
     await loadAll();
   } catch (error) {
     adminBonusMessage.textContent = "Erro ao salvar bonus do participante.";
-    console.error(error);
-  }
-});
-
-specialPredictionForm.addEventListener("submit", async (event) => {
-  event.preventDefault();
-  const message = document.querySelector("#specialPredictionMessage");
-  const participant = participants.find((item) => item.id === specialParticipantSelect.value);
-  const alreadyHasBonus = hasSpecialBonusPicks(participant);
-
-  if (!isSpecialBonusOpen() && !isAdmin) {
-    message.textContent = `O prazo para salvar bonus encerrou em ${specialBonusDeadlineText()}.`;
-    return;
-  }
-
-  if (specialResults?.bonus_active && !isAdmin) {
-    message.textContent = "Os bonus ja foram encerrados.";
-    return;
-  }
-
-  if (alreadyHasBonus && !isAdmin) {
-    message.textContent = "Seus bonus ja foram salvos e nao podem ser alterados.";
-    return;
-  }
-
-  try {
-    let query = supabaseClient
-      .from("participants")
-      .update({
-        champion_pick: document.querySelector("#championPick").value.trim() || null,
-        top_scorer_pick: document.querySelector("#topScorerPick").value.trim() || null,
-        finalist_one_pick: document.querySelector("#finalistOnePick").value.trim() || null,
-        finalist_two_pick: document.querySelector("#finalistTwoPick").value.trim() || null
-      })
-      .eq("id", specialParticipantSelect.value);
-
-    if (!isAdmin) {
-      query = query
-        .is("champion_pick", null)
-        .is("top_scorer_pick", null)
-        .is("finalist_one_pick", null)
-        .is("finalist_two_pick", null);
-    }
-
-    const result = await query
-      .select("id")
-      .throwOnError();
-
-    if (!isAdmin && !result.data?.length) {
-      message.textContent = "Esses bonus ja foram salvos e nao podem ser alterados.";
-      return;
-    }
-
-    message.textContent = "Bonus salvos.";
-    await loadAll();
-  } catch (error) {
-    message.textContent = "Erro ao salvar bonus.";
     console.error(error);
   }
 });
