@@ -36,6 +36,9 @@ const adminPredictionsTable = document.querySelector("#adminPredictionsTable");
 const adminEmpty = document.querySelector("#adminEmpty");
 const adminBonusTable = document.querySelector("#adminBonusTable");
 const adminBonusEmpty = document.querySelector("#adminBonusEmpty");
+const publicBonusPanel = document.querySelector("#publicBonusPanel");
+const publicBonusTable = document.querySelector("#publicBonusTable");
+const publicBonusEmpty = document.querySelector("#publicBonusEmpty");
 const groupTabs = document.querySelector("#groupTabs");
 const matchesList = document.querySelector("#matchesList");
 const matchesEmpty = document.querySelector("#matchesEmpty");
@@ -214,6 +217,10 @@ function hasSpecialBonusPicks(participant) {
     participant?.finalist_one_pick,
     participant?.finalist_two_pick
   ].some(Boolean);
+}
+
+function participantsWithSpecialBonus() {
+  return participants.filter(hasSpecialBonusPicks);
 }
 
 function matchPointsForParticipant(participant) {
@@ -558,6 +565,36 @@ function finalPointsFor(prediction, match) {
   return pointsFor(prediction, match);
 }
 
+function finalistPicksText(participant) {
+  return [participant.finalist_one_pick, participant.finalist_two_pick]
+    .filter(Boolean)
+    .join(" x ");
+}
+
+function renderPublicBonusPanel() {
+  publicBonusTable.innerHTML = "";
+  publicBonusPanel.hidden = !canShowSpecialBonusPicks();
+
+  if (publicBonusPanel.hidden) return;
+
+  const participantsWithBonus = participantsWithSpecialBonus();
+
+  participantsWithBonus.forEach((participant) => {
+    const row = document.createElement("tr");
+
+    row.innerHTML = `
+      <td>${escapeHtml(participant.name)}</td>
+      <td>${escapeHtml(participant.top_scorer_pick || "-")}</td>
+      <td>${escapeHtml(finalistPicksText(participant) || "-")}</td>
+      <td>${escapeHtml(participant.champion_pick || "-")}</td>
+    `;
+
+    publicBonusTable.appendChild(row);
+  });
+
+  publicBonusEmpty.style.display = participantsWithBonus.length ? "none" : "block";
+}
+
 function renderAdminPanel() {
   adminPredictionsTable.innerHTML = "";
   adminBonusTable.innerHTML = "";
@@ -619,20 +656,11 @@ function renderAdminPanel() {
 
   adminEmpty.style.display = visiblePredictions.length ? "none" : "block";
 
-  const participantsWithBonus = participants.filter((participant) =>
-    [
-      participant.champion_pick,
-      participant.top_scorer_pick,
-      participant.finalist_one_pick,
-      participant.finalist_two_pick
-    ].some(Boolean)
-  );
+  const participantsWithBonus = participantsWithSpecialBonus();
 
   participantsWithBonus.forEach((participant) => {
     const row = document.createElement("tr");
-    const finalists = [participant.finalist_one_pick, participant.finalist_two_pick]
-      .filter(Boolean)
-      .join(" x ");
+    const finalists = finalistPicksText(participant);
 
     row.innerHTML = `
       <td>${escapeHtml(participant.name)}</td>
@@ -661,6 +689,7 @@ function render() {
   renderSelects();
   renderRanking();
   renderMatches();
+  renderPublicBonusPanel();
   renderAdminPanel();
   fillSpecialResultForm();
 }
