@@ -54,6 +54,7 @@ let selectedDay = "all";
 let selectedAdminDay = "all";
 let selectedAdminMatch = "";
 let isAdmin = sessionStorage.getItem("bolao-admin") === "true";
+let nextKickoffTimer = null;
 
 function money(value) {
   return value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
@@ -133,8 +134,15 @@ function automaticPointsFor(prediction, match) {
   return 0;
 }
 
+function hasMatchStarted(match) {
+  if (!match?.kickoff_at) return false;
+
+  const kickoff = new Date(match.kickoff_at).getTime();
+  return !Number.isNaN(kickoff) && Date.now() >= kickoff;
+}
+
 function arePredictionsReleased(match) {
-  return Boolean(match?.predictions_released);
+  return Boolean(match?.predictions_released) || hasMatchStarted(match);
 }
 
 function canShowMatchPredictions(match) {
@@ -601,13 +609,18 @@ function renderAdminPanel() {
   adminBonusTable.innerHTML = "";
 
   const selectedMatch = matches.find((match) => match.id === selectedAdminMatch);
+  const matchStarted = hasMatchStarted(selectedMatch);
   const predictionsReleased = arePredictionsReleased(selectedMatch);
-  releasePredictionsButton.disabled = !selectedMatch;
-  releasePredictionsButton.textContent = predictionsReleased
+  releasePredictionsButton.disabled = !selectedMatch || matchStarted;
+  releasePredictionsButton.textContent = matchStarted
+    ? "Palpites liberados automaticamente"
+    : predictionsReleased
     ? "Ocultar palpites do geral"
     : "Liberar palpites para geral";
   releasePredictionsMessage.textContent = selectedMatch
-    ? predictionsReleased
+    ? matchStarted
+      ? "O horario do jogo comecou e os palpites foram liberados automaticamente."
+      : predictionsReleased
       ? "Palpites liberados para todos nesse jogo."
       : "Palpites ainda ocultos para os participantes."
     : "Escolha um jogo para liberar os palpites.";
@@ -687,6 +700,22 @@ function renderAdminPanel() {
   adminBonusEmpty.style.display = participantsWithBonus.length ? "none" : "block";
 }
 
+function scheduleNextKickoffRender() {
+  window.clearTimeout(nextKickoffTimer);
+
+  const now = Date.now();
+  const nextKickoff = matches
+    .map((match) => new Date(match.kickoff_at).getTime())
+    .filter((kickoff) => !Number.isNaN(kickoff) && kickoff > now)
+    .sort((a, b) => a - b)[0];
+
+  if (!nextKickoff) return;
+
+  const maximumTimeout = 2_147_483_647;
+  const delay = Math.min(nextKickoff - now + 100, maximumTimeout);
+  nextKickoffTimer = window.setTimeout(render, delay);
+}
+
 function render() {
   const paidCount = participants.filter((participant) => participant.paid).length;
   totalParticipants.textContent = participants.length;
@@ -698,6 +727,7 @@ function render() {
   renderPublicBonusPanel();
   renderAdminPanel();
   fillSpecialResultForm();
+  scheduleNextKickoffRender();
 }
 
 async function loadAll() {
@@ -1234,6 +1264,12 @@ releasePredictionsButton.addEventListener("click", async () => {
   const selectedMatch = matches.find((match) => match.id === selectedAdminMatch);
   if (!selectedMatch) {
     releasePredictionsMessage.textContent = "Escolha um jogo para liberar os palpites.";
+    return;
+  }
+
+  if (hasMatchStarted(selectedMatch)) {
+    releasePredictionsMessage.textContent = "Os palpites ja foram liberados automaticamente pelo horario do jogo.";
+    renderAdminPanel();
     return;
   }
 
