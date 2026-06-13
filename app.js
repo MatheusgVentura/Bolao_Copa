@@ -604,18 +604,6 @@ function renderPublicBonusPanel() {
   publicBonusEmpty.style.display = participantsWithBonus.length ? "none" : "block";
 }
 
-function addResponsiveTableLabels() {
-  document.querySelectorAll("table").forEach((table) => {
-    const labels = Array.from(table.querySelectorAll("thead th"), (heading) => heading.textContent.trim());
-
-    table.querySelectorAll("tbody tr").forEach((row) => {
-      Array.from(row.cells).forEach((cell, index) => {
-        cell.dataset.label = labels[index] || "Detalhe";
-      });
-    });
-  });
-}
-
 function renderAdminPanel() {
   adminPredictionsTable.innerHTML = "";
   adminBonusTable.innerHTML = "";
@@ -738,7 +726,6 @@ function render() {
   renderMatches();
   renderPublicBonusPanel();
   renderAdminPanel();
-  addResponsiveTableLabels();
   fillSpecialResultForm();
   scheduleNextKickoffRender();
 }
