@@ -958,22 +958,22 @@ function normalizeOfficialMatches(payload) {
         null;
       const venue = item.venue?.name || item.venue || item.ground || item.stadium || "";
       const parsedKickoff = item.date && item.time ? parseOpenFootballDate(item.date, item.time) : kickoffAt;
-      const sourceId = String(
-        item.id ||
-          item.num ||
-          item.match_id ||
-          item.fixture?.id ||
-          `${item.date || parsedKickoff || "sem-data"}-${item.round || stage}-${item.ground || venue || "sem-local"}-${index}`
-      );
-
       if (!homeTeam || !awayTeam) return null;
+
+      const normalizedKickoff = parsedKickoff ? new Date(parsedKickoff).toISOString() : null;
+      const sourceId = String(
+        item.source_id ||
+          item.id ||
+          item.fixture?.id ||
+          `${homeTeam}-${awayTeam}-${normalizedKickoff || index}`
+      );
 
       const normalized = {
         source_id: sourceId,
         stage: String(stage).slice(0, 30),
         home_team: String(homeTeam).slice(0, 40),
         away_team: String(awayTeam).slice(0, 40),
-        kickoff_at: parsedKickoff ? new Date(parsedKickoff).toISOString() : null,
+        kickoff_at: normalizedKickoff,
         venue: venue ? String(venue).slice(0, 80) : null
       };
 
@@ -1001,19 +1001,35 @@ async function syncOfficialResults() {
 
     const officialResults = normalizeOfficialMatches(await response.json())
       .filter((match) => Number.isInteger(match.home_score) && Number.isInteger(match.away_score))
-      .filter((match) => {
-        const savedMatch = matches.find((item) => item.source_id === match.source_id);
-        return !savedMatch ||
-          savedMatch.home_score !== match.home_score ||
-          savedMatch.away_score !== match.away_score;
-      });
+      .map((officialMatch) => {
+        const savedMatch = matches.find((match) =>
+          match.source_id === officialMatch.source_id ||
+          (sameText(match.home_team, officialMatch.home_team) &&
+            sameText(match.away_team, officialMatch.away_team) &&
+            match.kickoff_at && officialMatch.kickoff_at &&
+            new Date(match.kickoff_at).getTime() === new Date(officialMatch.kickoff_at).getTime())
+        );
+
+        return savedMatch ? { savedMatch, officialMatch } : null;
+      })
+      .filter(Boolean)
+      .filter(({ savedMatch, officialMatch }) =>
+        savedMatch.home_score !== officialMatch.home_score ||
+        savedMatch.away_score !== officialMatch.away_score
+      );
 
     if (!officialResults.length) return;
 
-    await supabaseClient
-      .from("matches")
-      .upsert(officialResults, { onConflict: "source_id" })
-      .throwOnError();
+    await Promise.all(officialResults.map(({ savedMatch, officialMatch }) =>
+      supabaseClient
+        .from("matches")
+        .update({
+          home_score: officialMatch.home_score,
+          away_score: officialMatch.away_score
+        })
+        .eq("id", savedMatch.id)
+        .throwOnError()
+    ));
 
     await loadAll();
   } catch (error) {
