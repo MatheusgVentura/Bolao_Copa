@@ -584,7 +584,7 @@ function renderRanking() {
       <span class="rank-position" aria-label="Posicao ${index + 1}">${index + 1}</span>
       <div class="rank-main">
         <strong>${participantName}</strong>
-        <small>${participant.matchPoints} jogos - ${participant.bonusPoints} bonus</small>
+        <small>${participant.matchPoints} pontos - ${participant.bonusPoints + participant.manualPoints} bonus</small>
       </div>
       <strong class="rank-score">${participant.total}</strong>
       <span class="badge ${participant.paid ? "paid" : "pending"}">${participant.paid ? "Pago" : "Pendente"}</span>
