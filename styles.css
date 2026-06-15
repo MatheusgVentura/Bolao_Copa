@@ -942,6 +942,75 @@ td {
     #fff;
 }
 
+.admin-tab-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(210px, 100%), 1fr));
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.admin-tab {
+  min-height: 92px;
+  padding: 15px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: rgba(255, 255, 255, 0.76);
+  color: var(--text);
+  text-align: left;
+  box-shadow: none;
+}
+
+.admin-tab:hover {
+  border-color: rgba(8, 115, 78, 0.42);
+  transform: translateY(-1px);
+}
+
+.admin-tab[aria-selected="true"] {
+  border-color: var(--primary);
+  background: linear-gradient(145deg, rgba(229, 245, 237, 0.95), rgba(255, 255, 255, 0.98));
+  box-shadow: inset 4px 0 0 var(--primary), 0 8px 20px rgba(10, 54, 37, 0.08);
+}
+
+.admin-tab strong,
+.admin-tab span {
+  display: block;
+}
+
+.admin-tab strong {
+  margin-bottom: 5px;
+  font-size: 0.96rem;
+}
+
+.admin-tab span {
+  color: var(--muted);
+  font-size: 0.8rem;
+  line-height: 1.35;
+}
+
+.admin-workspace {
+  padding: clamp(14px, 2vw, 20px);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: rgba(255, 255, 255, 0.72);
+}
+
+.admin-workspace-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 14px;
+}
+
+.admin-workspace-heading h3,
+.admin-workspace-heading p {
+  margin-top: 0;
+}
+
+.admin-workspace-heading p {
+  margin-bottom: 0;
+}
+
 .admin-tools {
   display: grid;
   grid-template-columns: minmax(220px, 280px) minmax(260px, 1fr) minmax(210px, 260px);
@@ -953,6 +1022,22 @@ td {
 .admin-release-control .hint {
   min-height: 18px;
   margin-top: 8px;
+}
+
+.admin-manual-points {
+  grid-template-columns: minmax(220px, 1fr) minmax(150px, 210px) auto;
+  align-items: end;
+  max-width: 760px;
+  margin-bottom: 0;
+  padding: 14px;
+  border: 1px solid rgba(217, 154, 33, 0.5);
+  border-radius: var(--radius);
+  background: linear-gradient(180deg, rgba(255, 244, 216, 0.52), rgba(255, 255, 255, 0.75));
+}
+
+#adminManualPointsMessage {
+  grid-column: 1 / -1;
+  margin-bottom: 0;
 }
 
 #specialResultForm {
@@ -1151,6 +1236,15 @@ td {
 }
 
 @media (max-width: 700px) {
+  .admin-tab-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .admin-tab {
+    min-height: 88px;
+    padding: 12px;
+  }
+
   body {
     background-size: auto, auto, 22px 22px, auto;
   }

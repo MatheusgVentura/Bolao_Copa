@@ -206,49 +206,98 @@
         <div class="table-header">
           <div>
             <h2 id="admin-title">Painel admin</h2>
-            <p>Confira os palpites e ajuste a pontuacao manualmente quando precisar.</p>
+            <p>Escolha uma area para gerenciar o bolao sem precisar percorrer o painel inteiro.</p>
           </div>
         </div>
 
-        <div class="admin-tools">
-          <div>
-            <label for="adminStageSelect">Dia</label>
-            <select id="adminStageSelect"></select>
-          </div>
-          <div>
-            <label for="adminMatchSelect">Jogo</label>
-            <select id="adminMatchSelect"></select>
-          </div>
-          <div class="admin-release-control">
-            <button class="secondary block" id="releasePredictionsButton" type="button">Liberar palpites para geral</button>
-            <p class="hint" id="releasePredictionsMessage" role="status" aria-live="polite"></p>
-          </div>
+        <div class="admin-tab-grid" role="tablist" aria-label="Areas do painel administrativo">
+          <button class="admin-tab" id="adminReviewTab" type="button" role="tab" aria-controls="adminReviewPanel" aria-selected="true" data-admin-tab="review">
+            <strong>Conferir palpites</strong>
+            <span>Resultados, pontos e liberacao</span>
+          </button>
+          <button class="admin-tab" id="adminManualTab" type="button" role="tab" aria-controls="adminManualPanel" aria-selected="false" data-admin-tab="manual">
+            <strong>Pontos manuais</strong>
+            <span>Ajuste individual no ranking</span>
+          </button>
+          <button class="admin-tab" id="adminAuditTab" type="button" role="tab" aria-controls="adminAuditPanel" aria-selected="false" data-admin-tab="audit">
+            <strong>Log de palpites</strong>
+            <span>Historico de alteracoes</span>
+          </button>
+          <button class="admin-tab" id="adminBonusTab" type="button" role="tab" aria-controls="adminBonusPanel" aria-selected="false" data-admin-tab="bonus">
+            <strong>Bonus</strong>
+            <span>Palpites e resultados especiais</span>
+          </button>
         </div>
 
-        <div class="table-wrap">
-          <table>
-            <caption>Palpites do jogo selecionado para conferencia do admin</caption>
-            <thead>
-              <tr>
-                <th scope="col">Participante</th>
-                <th scope="col">Jogo</th>
-                <th scope="col">Palpite</th>
-                <th scope="col">Enviado em</th>
-                <th scope="col">Resultado</th>
-                <th scope="col">Auto</th>
-                <th scope="col">Pontos finais</th>
-                <th scope="col">Conferido</th>
-              </tr>
-            </thead>
-            <tbody id="adminPredictionsTable"></tbody>
-          </table>
-          <div class="empty" id="adminEmpty">
-            <strong>Nenhum palpite para conferir.</strong>
-            <span>Escolha outro dia ou aguarde os participantes apostarem.</span>
+        <section class="admin-workspace" id="adminReviewPanel" role="tabpanel" aria-labelledby="adminReviewTab" data-admin-panel="review">
+          <div class="admin-workspace-heading">
+            <div>
+              <h3>Conferir palpites</h3>
+              <p>Selecione um jogo para revisar os pontos e liberar os palpites.</p>
+            </div>
           </div>
-        </div>
 
-        <div class="admin-subsection audit-section">
+          <div class="admin-tools">
+            <div>
+              <label for="adminStageSelect">Dia</label>
+              <select id="adminStageSelect"></select>
+            </div>
+            <div>
+              <label for="adminMatchSelect">Jogo</label>
+              <select id="adminMatchSelect"></select>
+            </div>
+            <div class="admin-release-control">
+              <button class="secondary block" id="releasePredictionsButton" type="button">Liberar palpites para geral</button>
+              <p class="hint" id="releasePredictionsMessage" role="status" aria-live="polite"></p>
+            </div>
+          </div>
+
+          <div class="table-wrap">
+            <table>
+              <caption>Palpites do jogo selecionado para conferencia do admin</caption>
+              <thead>
+                <tr>
+                  <th scope="col">Participante</th>
+                  <th scope="col">Jogo</th>
+                  <th scope="col">Palpite</th>
+                  <th scope="col">Enviado em</th>
+                  <th scope="col">Resultado</th>
+                  <th scope="col">Auto</th>
+                  <th scope="col">Pontos finais</th>
+                  <th scope="col">Conferido</th>
+                </tr>
+              </thead>
+              <tbody id="adminPredictionsTable"></tbody>
+            </table>
+            <div class="empty" id="adminEmpty">
+              <strong>Nenhum palpite para conferir.</strong>
+              <span>Escolha outro dia ou aguarde os participantes apostarem.</span>
+            </div>
+          </div>
+        </section>
+
+        <section class="admin-workspace hidden" id="adminManualPanel" role="tabpanel" aria-labelledby="adminManualTab" data-admin-panel="manual">
+          <div class="admin-workspace-heading">
+            <div>
+              <h3>Pontos manuais</h3>
+              <p>Adicione um ajuste individual ao total de um participante.</p>
+            </div>
+          </div>
+          <form class="admin-tools admin-manual-points" id="adminManualPointsForm">
+            <div>
+              <label for="adminManualPointsParticipantSelect">Participante</label>
+              <select id="adminManualPointsParticipantSelect" required></select>
+            </div>
+            <div>
+              <label for="adminManualPointsInput">Pontos manuais</label>
+              <input id="adminManualPointsInput" type="number" min="0" max="200" step="1" value="0" required>
+            </div>
+            <button class="primary compact-save" type="submit">Salvar pontos</button>
+            <p class="hint" id="adminManualPointsMessage" role="status" aria-live="polite"></p>
+          </form>
+        </section>
+
+        <section class="admin-workspace audit-section hidden" id="adminAuditPanel" role="tabpanel" aria-labelledby="adminAuditTab" data-admin-panel="audit">
           <div class="audit-heading">
             <div>
               <h3>Log de palpites</h3>
@@ -286,9 +335,9 @@
               <span>Rode o SQL atualizado no Supabase para ativar a auditoria.</span>
             </div>
           </div>
-        </div>
+        </section>
 
-        <div class="admin-subsection">
+        <section class="admin-workspace hidden" id="adminBonusPanel" role="tabpanel" aria-labelledby="adminBonusTab" data-admin-panel="bonus">
           <h3>Bonus dos participantes</h3>
           <p>5 pontos por artilheiro, 3 por finalista correto e 5 pontos para quem acertar o campeao dessa final.</p>
           <form class="admin-tools admin-bonus-editor" id="adminBonusForm">
@@ -362,7 +411,7 @@
               <span>Quando os participantes salvarem os bonus, eles aparecem aqui.</span>
             </div>
           </div>
-        </div>
+        </section>
       </section>
     </main>
 

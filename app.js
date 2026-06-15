@@ -8,6 +8,7 @@ const predictionForm = document.querySelector("#predictionForm");
 const resultForm = document.querySelector("#resultForm");
 const specialResultForm = document.querySelector("#specialResultForm");
 const adminBonusForm = document.querySelector("#adminBonusForm");
+const adminManualPointsForm = document.querySelector("#adminManualPointsForm");
 const refreshButton = document.querySelector("#refreshButton");
 const importMatchesButton = document.querySelector("#importMatchesButton");
 const adminLoginButton = document.querySelector("#adminLoginButton");
@@ -41,6 +42,11 @@ const adminBonusTable = document.querySelector("#adminBonusTable");
 const adminBonusEmpty = document.querySelector("#adminBonusEmpty");
 const adminBonusParticipantSelect = document.querySelector("#adminBonusParticipantSelect");
 const adminBonusMessage = document.querySelector("#adminBonusMessage");
+const adminManualPointsParticipantSelect = document.querySelector("#adminManualPointsParticipantSelect");
+const adminManualPointsInput = document.querySelector("#adminManualPointsInput");
+const adminManualPointsMessage = document.querySelector("#adminManualPointsMessage");
+const adminTabButtons = [...document.querySelectorAll("[data-admin-tab]")];
+const adminTabPanels = [...document.querySelectorAll("[data-admin-panel]")];
 const publicBonusPanel = document.querySelector("#publicBonusPanel");
 const publicBonusTable = document.querySelector("#publicBonusTable");
 const publicBonusEmpty = document.querySelector("#publicBonusEmpty");
@@ -61,6 +67,7 @@ let selectedAdminMatch = "";
 let selectedLogDay = "";
 let selectedLogMatch = "all";
 let isAdmin = sessionStorage.getItem("bolao-admin") === "true";
+let activeAdminTab = sessionStorage.getItem("bolao-admin-tab") || "review";
 let nextKickoffTimer = null;
 
 function money(value) {
@@ -139,6 +146,26 @@ function automaticPointsFor(prediction, match) {
 
   if (predictionResult === officialResult) return 1;
   return 0;
+}
+
+function activateAdminTab(tabName, focusTab = false) {
+  const validTab = adminTabButtons.some((button) => button.dataset.adminTab === tabName)
+    ? tabName
+    : "review";
+
+  activeAdminTab = validTab;
+  sessionStorage.setItem("bolao-admin-tab", validTab);
+
+  adminTabButtons.forEach((button) => {
+    const isActive = button.dataset.adminTab === validTab;
+    button.setAttribute("aria-selected", String(isActive));
+    button.tabIndex = isActive ? 0 : -1;
+    if (isActive && focusTab) button.focus();
+  });
+
+  adminTabPanels.forEach((panel) => {
+    panel.classList.toggle("hidden", panel.dataset.adminPanel !== validTab);
+  });
 }
 
 function hasMatchStarted(match) {
@@ -257,6 +284,11 @@ function fillAdminBonusForm(participantId) {
   document.querySelector("#adminFinalistTwoPick").value = participant?.finalist_two_pick || "";
 }
 
+function fillAdminManualPointsForm(participantId) {
+  const participant = participants.find((item) => item.id === participantId);
+  adminManualPointsInput.value = participant?.manual_bonus_points ?? 0;
+}
+
 function fillSpecialResultForm() {
   document.querySelector("#officialTopScorer").value = specialResults?.top_scorer || "";
   document.querySelector("#officialFinalistOne").value = specialResults?.finalist_one || "";
@@ -268,11 +300,13 @@ function fillSpecialResultForm() {
 function participantScore(participant) {
   const matchPoints = matchPointsForParticipant(participant);
   const bonusPoints = specialBonusFor(participant);
+  const manualPoints = Number(participant.manual_bonus_points) || 0;
 
   return {
     matchPoints,
     bonusPoints,
-    total: matchPoints + bonusPoints
+    manualPoints,
+    total: matchPoints + bonusPoints + manualPoints
   };
 }
 
@@ -436,6 +470,7 @@ function parseOpenFootballDate(date, time) {
 function renderSelects() {
   const selectedParticipant = participantSelect.value;
   const selectedAdminBonusParticipant = adminBonusParticipantSelect.value;
+  const selectedAdminManualPointsParticipant = adminManualPointsParticipantSelect.value;
   const selectedPredictionDay = predictionStageSelect.value;
   const selectedMatch = matchSelect.value;
   const selectedResultDay = resultStageSelect.value;
@@ -449,9 +484,12 @@ function renderSelects() {
   participantSelect.appendChild(option("Escolha o participante", ""));
   adminBonusParticipantSelect.innerHTML = "";
   adminBonusParticipantSelect.appendChild(option("Escolha o participante", ""));
+  adminManualPointsParticipantSelect.innerHTML = "";
+  adminManualPointsParticipantSelect.appendChild(option("Escolha o participante", ""));
   participants.forEach((participant) => {
     participantSelect.appendChild(option(participant.name, participant.id));
     adminBonusParticipantSelect.appendChild(option(participant.name, participant.id));
+    adminManualPointsParticipantSelect.appendChild(option(participant.name, participant.id));
   });
   participantSelect.value = participants.some((participant) => participant.id === selectedParticipant)
     ? selectedParticipant
@@ -459,7 +497,11 @@ function renderSelects() {
   adminBonusParticipantSelect.value = participants.some((participant) => participant.id === selectedAdminBonusParticipant)
     ? selectedAdminBonusParticipant
     : "";
+  adminManualPointsParticipantSelect.value = participants.some((participant) => participant.id === selectedAdminManualPointsParticipant)
+    ? selectedAdminManualPointsParticipant
+    : "";
   fillAdminBonusForm(adminBonusParticipantSelect.value);
+  fillAdminManualPointsForm(adminManualPointsParticipantSelect.value);
 
   const dayOptions = orderedMatchDays().map((day) => ({ label: dayLabel(day), value: day }));
   const fallbackDay = dayOptions[0]?.value || "";
@@ -542,7 +584,7 @@ function renderRanking() {
       <span class="rank-position" aria-label="Posicao ${index + 1}">${index + 1}</span>
       <div class="rank-main">
         <strong>${participantName}</strong>
-        <small>${participant.matchPoints} pontos - ${participant.bonusPoints} bonus</small>
+        <small>${participant.matchPoints} jogos - ${participant.bonusPoints} bonus</small>
       </div>
       <strong class="rank-score">${participant.total}</strong>
       <span class="badge ${participant.paid ? "paid" : "pending"}">${participant.paid ? "Pago" : "Pendente"}</span>
@@ -850,7 +892,7 @@ async function loadAll() {
 
   const participantColumns = canShowSpecialBonusPicks()
     ? "*"
-    : "id,name,paid,created_at";
+    : "id,name,paid,manual_bonus_points,created_at";
   const logRequest = isAdmin
     ? supabaseClient.from("prediction_logs").select("*").order("occurred_at", { ascending: false })
     : Promise.resolve({ data: [], error: null });
@@ -1245,6 +1287,60 @@ disableBonusPointsButton.addEventListener("click", async () => {
 adminBonusParticipantSelect.addEventListener("change", () => {
   fillAdminBonusForm(adminBonusParticipantSelect.value);
   adminBonusMessage.textContent = "";
+});
+
+adminManualPointsParticipantSelect.addEventListener("change", () => {
+  fillAdminManualPointsForm(adminManualPointsParticipantSelect.value);
+  adminManualPointsMessage.textContent = "";
+});
+
+adminTabButtons.forEach((button, index) => {
+  button.addEventListener("click", () => activateAdminTab(button.dataset.adminTab));
+  button.addEventListener("keydown", (event) => {
+    if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
+
+    event.preventDefault();
+    let nextIndex = index;
+    if (event.key === "ArrowLeft") nextIndex = (index - 1 + adminTabButtons.length) % adminTabButtons.length;
+    if (event.key === "ArrowRight") nextIndex = (index + 1) % adminTabButtons.length;
+    if (event.key === "Home") nextIndex = 0;
+    if (event.key === "End") nextIndex = adminTabButtons.length - 1;
+    activateAdminTab(adminTabButtons[nextIndex].dataset.adminTab, true);
+  });
+});
+
+activateAdminTab(activeAdminTab);
+
+adminManualPointsForm.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  if (!requireAdmin()) return;
+
+  const participantId = adminManualPointsParticipantSelect.value;
+  const manualPoints = Number(adminManualPointsInput.value);
+
+  if (!participantId) {
+    adminManualPointsMessage.textContent = "Escolha o participante.";
+    return;
+  }
+
+  if (!Number.isInteger(manualPoints) || manualPoints < 0 || manualPoints > 200) {
+    adminManualPointsMessage.textContent = "Informe um valor inteiro entre 0 e 200.";
+    return;
+  }
+
+  try {
+    await supabaseClient
+      .from("participants")
+      .update({ manual_bonus_points: manualPoints })
+      .eq("id", participantId)
+      .throwOnError();
+
+    adminManualPointsMessage.textContent = "Pontos manuais salvos.";
+    await loadAll();
+  } catch (error) {
+    adminManualPointsMessage.textContent = "Erro ao salvar os pontos manuais.";
+    console.error(error);
+  }
 });
 
 adminBonusForm.addEventListener("submit", async (event) => {
