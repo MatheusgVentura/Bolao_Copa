@@ -54,6 +54,9 @@ const publicBonusEmpty = document.querySelector("#publicBonusEmpty");
 const groupTabs = document.querySelector("#groupTabs");
 const matchesList = document.querySelector("#matchesList");
 const matchesEmpty = document.querySelector("#matchesEmpty");
+const selectedMatchSummary = document.querySelector("#selectedMatchSummary");
+const predictionHomeScore = document.querySelector("#predictionHomeScore");
+const predictionAwayScore = document.querySelector("#predictionAwayScore");
 
 let supabaseClient = null;
 let appConfig = null;
@@ -71,6 +74,7 @@ let isAdmin = sessionStorage.getItem("bolao-admin") === "true";
 let activeAdminTab = sessionStorage.getItem("bolao-admin-tab") || "review";
 let nextKickoffTimer = null;
 let resultSyncInProgress = false;
+let preferredParticipantId = localStorage.getItem("bolao-participant-id") || "";
 
 function money(value) {
   return value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
@@ -470,7 +474,7 @@ function parseOpenFootballDate(date, time) {
 }
 
 function renderSelects() {
-  const selectedParticipant = participantSelect.value;
+  const selectedParticipant = participantSelect.value || preferredParticipantId;
   const selectedAdminBonusParticipant = adminBonusParticipantSelect.value;
   const selectedAdminManualPointsParticipant = adminManualPointsParticipantSelect.value;
   const selectedPredictionDay = predictionStageSelect.value;
@@ -496,6 +500,12 @@ function renderSelects() {
   participantSelect.value = participants.some((participant) => participant.id === selectedParticipant)
     ? selectedParticipant
     : "";
+  preferredParticipantId = participantSelect.value;
+  if (preferredParticipantId) {
+    localStorage.setItem("bolao-participant-id", preferredParticipantId);
+  } else {
+    localStorage.removeItem("bolao-participant-id");
+  }
   adminBonusParticipantSelect.value = participants.some((participant) => participant.id === selectedAdminBonusParticipant)
     ? selectedAdminBonusParticipant
     : "";
@@ -572,6 +582,23 @@ function renderSelects() {
     });
     element.value = visibleMatches.some((match) => match.id === value && (element !== matchSelect || canPredictMatch(match))) ? value : "";
   });
+
+  updatePredictionContext();
+}
+
+function updatePredictionContext() {
+  const match = matches.find((item) => item.id === matchSelect.value);
+
+  if (!match) {
+    selectedMatchSummary.textContent = "Selecione um jogo para informar o placar.";
+    predictionHomeScore.setAttribute("aria-label", "Gols da selecao A no palpite");
+    predictionAwayScore.setAttribute("aria-label", "Gols da selecao B no palpite");
+    return;
+  }
+
+  selectedMatchSummary.textContent = `${match.home_team} x ${match.away_team}`;
+  predictionHomeScore.setAttribute("aria-label", `Gols de ${match.home_team} no palpite`);
+  predictionAwayScore.setAttribute("aria-label", `Gols de ${match.away_team} no palpite`);
 }
 
 function renderRanking() {
@@ -1104,10 +1131,19 @@ participantForm.addEventListener("submit", async (event) => {
   }
 
   try {
-    await supabaseClient.from("participants").insert({ name, paid }).throwOnError();
+    const { data: createdParticipant } = await supabaseClient
+      .from("participants")
+      .insert({ name, paid })
+      .select("id")
+      .single()
+      .throwOnError();
+    preferredParticipantId = createdParticipant.id;
+    localStorage.setItem("bolao-participant-id", preferredParticipantId);
     participantForm.reset();
-    message.textContent = "Participante adicionado.";
+    message.textContent = "Participante adicionado. Agora escolha o jogo e salve seu palpite.";
     await loadAll();
+    predictionForm.scrollIntoView({ behavior: "smooth", block: "start" });
+    matchSelect.focus({ preventScroll: true });
   } catch (error) {
     message.textContent = error?.code === "23505"
       ? "Ja existe um participante com esse nome."
@@ -1173,8 +1209,10 @@ predictionForm.addEventListener("submit", async (event) => {
   }
 
   try {
+    const participantId = participantSelect.value;
+    const predictionDay = predictionStageSelect.value;
     const payload = {
-        participant_id: participantSelect.value,
+        participant_id: participantId,
         match_id: matchSelect.value,
         home_score: numberValue("#predictionHomeScore"),
         away_score: numberValue("#predictionAwayScore")
@@ -1191,7 +1229,11 @@ predictionForm.addEventListener("submit", async (event) => {
     }
 
     predictionForm.reset();
-    message.textContent = "Palpite salvo.";
+    preferredParticipantId = participantId;
+    localStorage.setItem("bolao-participant-id", preferredParticipantId);
+    participantSelect.value = participantId;
+    predictionStageSelect.value = predictionDay;
+    message.textContent = "Palpite salvo. Voce ja pode escolher o proximo jogo.";
     await loadAll();
   } catch (error) {
     message.textContent = "Erro ao salvar palpite.";
@@ -1511,6 +1553,17 @@ adminStageSelect.addEventListener("change", () => {
   renderSelects();
   renderAdminPanel();
 });
+
+participantSelect.addEventListener("change", () => {
+  preferredParticipantId = participantSelect.value;
+  if (preferredParticipantId) {
+    localStorage.setItem("bolao-participant-id", preferredParticipantId);
+  } else {
+    localStorage.removeItem("bolao-participant-id");
+  }
+});
+
+matchSelect.addEventListener("change", updatePredictionContext);
 
 adminMatchSelect.addEventListener("change", () => {
   selectedAdminMatch = adminMatchSelect.value;

@@ -19,7 +19,7 @@
           <p class="eyebrow">Bolao privado do O</p>
           <h1 id="page-title">Bolao da Copa</h1>
           <p class="summary">
-            Palpites por jogo, resultados oficiais e ranking por pontos.
+            Entre no bolao, escolha o jogo e salve seu placar em poucos passos.
             Entrada combinada: <strong>R$100</strong> por pessoa.
           </p>
         </div>
@@ -50,11 +50,20 @@
         </div>
       </div>
 
-      <section class="grid">
+      <nav class="quick-nav" aria-label="Atalhos da pagina">
+        <a class="quick-nav-primary" href="#predictionForm">Fazer palpite</a>
+        <a href="#ranking-title">Ver ranking</a>
+        <a href="#matches-title">Ver jogos</a>
+        <span>Palpites fecham 1 minuto antes de cada jogo.</span>
+      </nav>
+
+      <section class="grid" aria-label="Comece por aqui">
         <form class="panel form-panel participant-only" id="participantForm">
-          <h2>Participante</h2>
+          <p class="step-label"><span>1</span> Primeiro acesso</p>
+          <h2>Entre no bolao</h2>
+          <p class="form-intro">Cadastre seu nome uma vez. Depois, ele fica disponivel na lista de participantes.</p>
           <label for="participantName">Nome</label>
-          <input id="participantName" type="text" maxlength="40" placeholder="Ex: Matheus" required>
+          <input id="participantName" name="participant_name" type="text" maxlength="40" autocomplete="name" placeholder="Ex.: Matheus…" required>
 
           <label class="checkbox">
             <input id="participantPaid" type="checkbox" required>
@@ -63,6 +72,10 @@
 
           <button class="primary" type="submit">Adicionar participante</button>
           <p class="hint" id="participantMessage" role="status" aria-live="polite"></p>
+          <div class="flow-help" aria-label="Como participar">
+            <strong>Depois do cadastro</strong>
+            <span>Escolha seu nome no passo 2, selecione o jogo e informe o placar.</span>
+          </div>
         </form>
 
         <form class="panel form-panel admin-only admin-card" id="matchForm">
@@ -97,25 +110,28 @@
         </form>
 
         <form class="panel form-panel participant-only" id="predictionForm">
-          <h2>Palpite</h2>
+          <p class="step-label"><span>2</span> Seu palpite</p>
+          <h2>Escolha um jogo</h2>
+          <p class="form-intro">Seu nome fica lembrado neste aparelho para os proximos palpites.</p>
           <label for="participantSelect">Participante</label>
-          <select id="participantSelect" required></select>
+          <select id="participantSelect" name="participant_id" autocomplete="off" required></select>
 
           <label for="predictionStageSelect">Dia</label>
-          <select id="predictionStageSelect"></select>
+          <select id="predictionStageSelect" name="prediction_day" autocomplete="off"></select>
 
           <label for="matchSelect">Jogo</label>
-          <select id="matchSelect" required></select>
+          <select id="matchSelect" name="match_id" autocomplete="off" required></select>
           <p class="hint" id="predictionDeadlineHint">Palpites encerram 1 minuto antes do inicio da partida.</p>
 
-          <div class="score-row" role="group" aria-labelledby="predictionScoreLabel" aria-describedby="predictionDeadlineHint">
+          <div class="selected-match" id="selectedMatchSummary" aria-live="polite">Selecione um jogo para informar o placar.</div>
+          <div class="score-row" role="group" aria-labelledby="predictionScoreLabel" aria-describedby="predictionDeadlineHint selectedMatchSummary">
             <span class="visually-hidden" id="predictionScoreLabel">Placar do palpite</span>
-            <input id="predictionHomeScore" type="number" min="0" max="30" required aria-label="Gols da selecao A no palpite">
+            <input id="predictionHomeScore" name="prediction_home_score" type="number" min="0" max="30" inputmode="numeric" required aria-label="Gols da selecao A no palpite">
             <span>x</span>
-            <input id="predictionAwayScore" type="number" min="0" max="30" required aria-label="Gols da selecao B no palpite">
+            <input id="predictionAwayScore" name="prediction_away_score" type="number" min="0" max="30" inputmode="numeric" required aria-label="Gols da selecao B no palpite">
           </div>
 
-          <button class="primary" type="submit">Salvar palpite</button>
+          <button class="primary" type="submit">Salvar meu palpite</button>
           <p class="hint" id="predictionMessage" role="status" aria-live="polite"></p>
         </form>
 
