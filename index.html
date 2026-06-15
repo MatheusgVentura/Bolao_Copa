@@ -233,6 +233,7 @@
                 <th scope="col">Participante</th>
                 <th scope="col">Jogo</th>
                 <th scope="col">Palpite</th>
+                <th scope="col">Enviado em</th>
                 <th scope="col">Resultado</th>
                 <th scope="col">Auto</th>
                 <th scope="col">Pontos finais</th>
@@ -244,6 +245,46 @@
           <div class="empty" id="adminEmpty">
             <strong>Nenhum palpite para conferir.</strong>
             <span>Escolha outro dia ou aguarde os participantes apostarem.</span>
+          </div>
+        </div>
+
+        <div class="admin-subsection audit-section">
+          <div class="audit-heading">
+            <div>
+              <h3>Log de palpites</h3>
+              <p>Historico de envios, alteracoes e exclusoes, com horario registrado pelo banco.</p>
+            </div>
+            <span class="audit-lock">Visivel no painel admin</span>
+          </div>
+          <div class="admin-tools audit-filters">
+            <div>
+              <label for="predictionLogDaySelect">Dia</label>
+              <select id="predictionLogDaySelect"></select>
+            </div>
+            <div>
+              <label for="predictionLogMatchSelect">Jogo</label>
+              <select id="predictionLogMatchSelect"></select>
+            </div>
+          </div>
+          <div class="table-wrap audit-table-wrap">
+            <table>
+              <caption>Historico de auditoria dos palpites</caption>
+              <thead>
+                <tr>
+                  <th scope="col">Participante</th>
+                  <th scope="col">Jogo</th>
+                  <th scope="col">Palpite</th>
+                  <th scope="col">Acao</th>
+                  <th scope="col">Data e horario</th>
+                  <th scope="col">Prazo</th>
+                </tr>
+              </thead>
+              <tbody id="predictionLogTable"></tbody>
+            </table>
+            <div class="empty" id="predictionLogEmpty">
+              <strong>Nenhum registro no log.</strong>
+              <span>Rode o SQL atualizado no Supabase para ativar a auditoria.</span>
+            </div>
           </div>
         </div>
 

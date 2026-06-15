@@ -987,6 +987,81 @@ td {
   border-top: 1px solid var(--line);
 }
 
+.audit-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 12px;
+}
+
+.audit-heading h3,
+.audit-heading p {
+  margin-top: 0;
+}
+
+.audit-filters {
+  grid-template-columns: minmax(180px, 280px) minmax(260px, 1fr);
+  max-width: 920px;
+}
+
+.audit-table-wrap {
+  max-height: 430px;
+  overflow: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+}
+
+.audit-table-wrap table {
+  margin: 0;
+}
+
+.audit-table-wrap th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: #f7faf8;
+  box-shadow: 0 1px 0 var(--line);
+}
+
+.audit-lock,
+.audit-action,
+.deadline-status {
+  display: inline-flex;
+  align-items: center;
+  min-height: 26px;
+  padding: 3px 9px;
+  border-radius: 999px;
+  font-size: 0.76rem;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.audit-lock,
+.audit-action-insert,
+.deadline-status-ok {
+  color: #086142;
+  background: #dff4e9;
+}
+
+.audit-action-update {
+  color: #755100;
+  background: #fff0c7;
+}
+
+.audit-action-delete,
+.deadline-status-late {
+  color: #9b2929;
+  background: #ffe1df;
+}
+
+.deadline-status-neutral {
+  color: #53606b;
+  background: #edf1f4;
+}
+
 .points-select,
 .bonus-points-select {
   width: 78px;
@@ -1209,5 +1284,22 @@ td {
 
   .admin-panel {
     margin-top: 14px;
+  }
+
+  .audit-heading {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .audit-filters {
+    grid-template-columns: 1fr;
+  }
+
+  .audit-table-wrap {
+    max-height: 360px;
+  }
+
+  .audit-lock {
+    align-self: flex-start;
   }
 }

@@ -33,6 +33,10 @@ const releasePredictionsButton = document.querySelector("#releasePredictionsButt
 const releasePredictionsMessage = document.querySelector("#releasePredictionsMessage");
 const adminPredictionsTable = document.querySelector("#adminPredictionsTable");
 const adminEmpty = document.querySelector("#adminEmpty");
+const predictionLogTable = document.querySelector("#predictionLogTable");
+const predictionLogEmpty = document.querySelector("#predictionLogEmpty");
+const predictionLogDaySelect = document.querySelector("#predictionLogDaySelect");
+const predictionLogMatchSelect = document.querySelector("#predictionLogMatchSelect");
 const adminBonusTable = document.querySelector("#adminBonusTable");
 const adminBonusEmpty = document.querySelector("#adminBonusEmpty");
 const adminBonusParticipantSelect = document.querySelector("#adminBonusParticipantSelect");
@@ -49,10 +53,13 @@ let appConfig = null;
 let participants = [];
 let matches = [];
 let predictions = [];
+let predictionLogs = [];
 let specialResults = null;
 let selectedDay = "all";
 let selectedAdminDay = "all";
 let selectedAdminMatch = "";
+let selectedLogDay = "";
+let selectedLogMatch = "all";
 let isAdmin = sessionStorage.getItem("bolao-admin") === "true";
 let nextKickoffTimer = null;
 
@@ -336,6 +343,55 @@ function formatMatchDate(value) {
   }).format(new Date(value));
 }
 
+function formatLogDate(value) {
+  if (!value) return "-";
+
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "-";
+
+  return new Intl.DateTimeFormat("pt-BR", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit"
+  }).format(date);
+}
+
+function predictionDeadlineStatus(log) {
+  const match = matches.find((item) => item.id === log.match_id);
+  const deadlineValue = log.deadline_at || (match?.kickoff_at
+    ? new Date(new Date(match.kickoff_at).getTime() - PREDICTION_DEADLINE_MS).toISOString()
+    : null);
+  if (!deadlineValue || !log.occurred_at) {
+    return { label: "Sem limite", className: "neutral" };
+  }
+
+  const actionTime = new Date(log.occurred_at).getTime();
+  const deadline = new Date(deadlineValue).getTime();
+  if (Number.isNaN(actionTime) || Number.isNaN(deadline)) {
+    return { label: "Sem limite", className: "neutral" };
+  }
+
+  return actionTime <= deadline
+    ? { label: "No prazo", className: "ok" }
+    : { label: "Apos o limite", className: "late" };
+}
+
+function predictionLogDayKey(log) {
+  const match = matches.find((item) => item.id === log.match_id);
+  if (match) return matchDayKey(match);
+  if (!log.deadline_at) return "sem-data";
+
+  const deadline = new Date(log.deadline_at).getTime();
+  if (Number.isNaN(deadline)) return "sem-data";
+
+  return matchDayKey({
+    kickoff_at: new Date(deadline + PREDICTION_DEADLINE_MS).toISOString()
+  });
+}
+
 function canPredictMatch(match) {
   if (isAdmin || !match?.kickoff_at) return true;
 
@@ -386,6 +442,8 @@ function renderSelects() {
   const selectedResultMatch = resultMatchSelect.value;
   const selectedAdminDayValue = adminStageSelect.value || selectedAdminDay;
   const selectedAdminMatchValue = adminMatchSelect.value || selectedAdminMatch;
+  const selectedLogDayValue = predictionLogDaySelect.value || selectedLogDay;
+  const selectedLogMatchValue = predictionLogMatchSelect.value || selectedLogMatch;
 
   participantSelect.innerHTML = "";
   participantSelect.appendChild(option("Escolha o participante", ""));
@@ -409,7 +467,8 @@ function renderSelects() {
   [
     { element: predictionStageSelect, value: selectedPredictionDay || fallbackDay },
     { element: resultStageSelect, value: selectedResultDay || fallbackDay },
-    { element: adminStageSelect, value: selectedAdminDayValue || fallbackDay }
+    { element: adminStageSelect, value: selectedAdminDayValue || fallbackDay },
+    { element: predictionLogDaySelect, value: selectedLogDayValue || fallbackDay }
   ].forEach(({ element, value }) => {
     element.innerHTML = "";
     dayOptions.forEach((day) => {
@@ -419,6 +478,7 @@ function renderSelects() {
   });
 
   selectedAdminDay = adminStageSelect.value;
+  selectedLogDay = predictionLogDaySelect.value;
 
   const adminMatches = matches.filter((match) => matchDayKey(match) === selectedAdminDay);
   adminMatchSelect.innerHTML = "";
@@ -431,6 +491,24 @@ function renderSelects() {
     ? selectedAdminMatchValue
     : adminMatches[0]?.id || "";
   adminMatchSelect.value = selectedAdminMatch;
+
+  const logMatches = new Map();
+  predictionLogs
+    .filter((log) => predictionLogDayKey(log) === selectedLogDay)
+    .forEach((log) => {
+      logMatches.set(log.match_id, log.match_label || "Jogo removido");
+    });
+  predictionLogMatchSelect.innerHTML = "";
+  predictionLogMatchSelect.appendChild(option("Todos os jogos", "all"));
+  [...logMatches.entries()]
+    .sort((a, b) => a[1].localeCompare(b[1]))
+    .forEach(([matchId, label]) => {
+      predictionLogMatchSelect.appendChild(option(label, matchId));
+    });
+  selectedLogMatch = selectedLogMatchValue === "all" || logMatches.has(selectedLogMatchValue)
+    ? selectedLogMatchValue
+    : "all";
+  predictionLogMatchSelect.value = selectedLogMatch;
 
   [
     { element: matchSelect, value: selectedMatch, day: predictionStageSelect.value },
@@ -607,6 +685,7 @@ function renderPublicBonusPanel() {
 function renderAdminPanel() {
   adminPredictionsTable.innerHTML = "";
   adminBonusTable.innerHTML = "";
+  predictionLogTable.innerHTML = "";
 
   const selectedMatch = matches.find((match) => match.id === selectedAdminMatch);
   const matchStarted = hasMatchStarted(selectedMatch);
@@ -652,6 +731,7 @@ function renderAdminPanel() {
       <td>${escapedParticipantName}</td>
       <td>${escapedMatchLabel}</td>
       <td>${prediction.home_score} x ${prediction.away_score}</td>
+      <td>${formatLogDate(prediction.created_at)}</td>
       <td>${result}</td>
       <td>${autoPoints}</td>
       <td>
@@ -673,6 +753,33 @@ function renderAdminPanel() {
   });
 
   adminEmpty.style.display = visiblePredictions.length ? "none" : "block";
+
+  const visiblePredictionLogs = predictionLogs
+    .filter((log) => predictionLogDayKey(log) === selectedLogDay)
+    .filter((log) => selectedLogMatch === "all" || log.match_id === selectedLogMatch);
+
+  visiblePredictionLogs.forEach((log) => {
+    const deadlineStatus = predictionDeadlineStatus(log);
+    const actionLabels = {
+      insert: "Envio",
+      update: "Alteracao",
+      delete: "Exclusao"
+    };
+    const row = document.createElement("tr");
+
+    row.innerHTML = `
+      <td>${escapeHtml(log.participant_name || "Participante removido")}</td>
+      <td>${escapeHtml(log.match_label || "Jogo removido")}</td>
+      <td>${log.home_score} x ${log.away_score}</td>
+      <td><span class="audit-action audit-action-${log.action}">${actionLabels[log.action] || escapeHtml(log.action)}</span></td>
+      <td>${formatLogDate(log.occurred_at)}</td>
+      <td><span class="deadline-status deadline-status-${deadlineStatus.className}">${deadlineStatus.label}</span></td>
+    `;
+
+    predictionLogTable.appendChild(row);
+  });
+
+  predictionLogEmpty.style.display = visiblePredictionLogs.length ? "none" : "block";
 
   const participantsWithBonus = participantsWithSpecialBonus();
 
@@ -744,10 +851,14 @@ async function loadAll() {
   const participantColumns = canShowSpecialBonusPicks()
     ? "*"
     : "id,name,paid,created_at";
-  const [participantsResult, matchesResult, predictionsResult] = await Promise.all([
+  const logRequest = isAdmin
+    ? supabaseClient.from("prediction_logs").select("*").order("occurred_at", { ascending: false })
+    : Promise.resolve({ data: [], error: null });
+  const [participantsResult, matchesResult, predictionsResult, logsResult] = await Promise.all([
     supabaseClient.from("participants").select(participantColumns).order("created_at", { ascending: true }),
     supabaseClient.from("matches").select("*").order("kickoff_at", { ascending: true, nullsFirst: false }).order("created_at", { ascending: true }),
-    supabaseClient.from("predictions").select("*").order("created_at", { ascending: true })
+    supabaseClient.from("predictions").select("*").order("created_at", { ascending: true }),
+    logRequest
   ]);
 
   const error =
@@ -759,6 +870,7 @@ async function loadAll() {
   participants = participantsResult.data || [];
   matches = matchesResult.data || [];
   predictions = predictionsResult.data || [];
+  predictionLogs = logsResult.error ? [] : logsResult.data || [];
 
   render();
 }
@@ -1258,6 +1370,18 @@ adminMatchSelect.addEventListener("change", () => {
   renderAdminPanel();
 });
 
+predictionLogDaySelect.addEventListener("change", () => {
+  selectedLogDay = predictionLogDaySelect.value;
+  selectedLogMatch = "all";
+  renderSelects();
+  renderAdminPanel();
+});
+
+predictionLogMatchSelect.addEventListener("change", () => {
+  selectedLogMatch = predictionLogMatchSelect.value;
+  renderAdminPanel();
+});
+
 releasePredictionsButton.addEventListener("click", async () => {
   if (!requireAdmin()) return;
 
@@ -1368,7 +1492,7 @@ adminLogoutButton.addEventListener("click", async () => {
 });
 
 function subscribeToChanges() {
-  ["participants", "matches", "predictions", "special_results"].forEach((table) => {
+  ["participants", "matches", "predictions", "prediction_logs", "special_results"].forEach((table) => {
     supabaseClient
       .channel(`${table}-realtime`)
       .on("postgres_changes", { event: "*", schema: "public", table }, () => loadAll())
