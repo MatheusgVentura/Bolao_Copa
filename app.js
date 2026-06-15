@@ -1,5 +1,6 @@
 const ENTRY_VALUE = 100;
 const PREDICTION_DEADLINE_MS = 1 * 60 * 1000;
+const AUTO_RESULTS_REFRESH_MS = 5 * 60 * 1000;
 const SPECIAL_BONUS_DEADLINE = new Date("2026-06-10T23:59:59-03:00");
 
 const participantForm = document.querySelector("#participantForm");
@@ -69,6 +70,7 @@ let selectedLogMatch = "all";
 let isAdmin = sessionStorage.getItem("bolao-admin") === "true";
 let activeAdminTab = sessionStorage.getItem("bolao-admin-tab") || "review";
 let nextKickoffTimer = null;
+let resultSyncInProgress = false;
 
 function money(value) {
   return value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
@@ -988,6 +990,39 @@ function normalizeOfficialMatches(payload) {
     .filter(Boolean);
 }
 
+async function syncOfficialResults() {
+  if (resultSyncInProgress || !appConfig?.officialMatchesUrl || !supabaseClient) return;
+
+  resultSyncInProgress = true;
+
+  try {
+    const response = await fetch(appConfig.officialMatchesUrl, { cache: "no-store" });
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+
+    const officialResults = normalizeOfficialMatches(await response.json())
+      .filter((match) => Number.isInteger(match.home_score) && Number.isInteger(match.away_score))
+      .filter((match) => {
+        const savedMatch = matches.find((item) => item.source_id === match.source_id);
+        return !savedMatch ||
+          savedMatch.home_score !== match.home_score ||
+          savedMatch.away_score !== match.away_score;
+      });
+
+    if (!officialResults.length) return;
+
+    await supabaseClient
+      .from("matches")
+      .upsert(officialResults, { onConflict: "source_id" })
+      .throwOnError();
+
+    await loadAll();
+  } catch (error) {
+    console.error("Erro ao atualizar resultados automaticamente.", error);
+  } finally {
+    resultSyncInProgress = false;
+  }
+}
+
 async function importOfficialMatches() {
   if (!requireAdmin()) return;
 
@@ -1615,8 +1650,10 @@ async function start() {
   try {
     await loadAll();
     subscribeToChanges();
+    await syncOfficialResults();
+    window.setInterval(syncOfficialResults, AUTO_RESULTS_REFRESH_MS);
     setFormsEnabled(true);
-    setStatus("Tabela conectada. O ranking atualiza quando os resultados entram.", "ok");
+    setStatus("Tabela conectada. Resultados e ranking atualizam automaticamente.", "ok");
   } catch (error) {
     setStatus("Nao consegui conectar. Rode o SQL atualizado no Supabase.", "error");
     console.error(error);
