@@ -2,6 +2,7 @@ const ENTRY_VALUE = 100;
 const PREDICTION_DEADLINE_MS = 1 * 60 * 1000;
 const AUTO_RESULTS_REFRESH_MS = 5 * 60 * 1000;
 const SPECIAL_BONUS_DEADLINE = new Date("2026-06-10T23:59:59-03:00");
+const PARTICIPANT_PHOTOS = ["Aquino", "Danão", "Davi", "João", "Julianno", "Marcelo", "Matheus", "Pedro", "Rizza", "Vicius"];
 
 const participantForm = document.querySelector("#participantForm");
 const matchForm = document.querySelector("#matchForm");
@@ -57,6 +58,7 @@ const matchesEmpty = document.querySelector("#matchesEmpty");
 const selectedMatchSummary = document.querySelector("#selectedMatchSummary");
 const predictionHomeScore = document.querySelector("#predictionHomeScore");
 const predictionAwayScore = document.querySelector("#predictionAwayScore");
+const loadingBar = document.querySelector("#loadingBar");
 
 let supabaseClient = null;
 let appConfig = null;
@@ -73,11 +75,19 @@ let selectedLogMatch = "all";
 let isAdmin = sessionStorage.getItem("bolao-admin") === "true";
 let activeAdminTab = sessionStorage.getItem("bolao-admin-tab") || "review";
 let nextKickoffTimer = null;
+let countdownIntervalId = null;
+let predictionDeadlineIntervalId = null;
 let resultSyncInProgress = false;
 let preferredParticipantId = localStorage.getItem("bolao-participant-id") || "";
 
 function money(value) {
   return value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+}
+
+function getParticipantPhoto(name) {
+  const normalizedName = normalizeText(name);
+  const match = PARTICIPANT_PHOTOS.find((file) => normalizedName.includes(normalizeText(file)));
+  return match ? `Fotos/${encodeURIComponent(match)}.jpg` : null;
 }
 
 function setStatus(message, type = "") {
@@ -575,7 +585,10 @@ function renderSelects() {
     visibleMatches.forEach((match) => {
       const date = formatMatchDate(match.kickoff_at);
       const locked = element === matchSelect && !canPredictMatch(match);
-      const label = `${match.home_team} x ${match.away_team} - ${match.stage}${date ? ` - ${date}` : ""}${locked ? " - palpites encerrados" : ""}`;
+      const hasPrediction = element === matchSelect && selectedParticipant && (isAdmin || canShowMatchPredictions(match))
+        ? predictions.some((p) => p.participant_id === selectedParticipant && p.match_id === match.id)
+        : false;
+      const label = `${hasPrediction ? "✓ " : ""}${match.home_team} x ${match.away_team} - ${match.stage}${date ? ` - ${date}` : ""}${locked ? " - palpites encerrados" : ""}`;
       const item = option(label, match.id);
       item.disabled = locked;
       element.appendChild(item);
@@ -586,19 +599,101 @@ function renderSelects() {
   updatePredictionContext();
 }
 
+function syncQuickScoreHighlight() {
+  const home = predictionHomeScore.value;
+  const away = predictionAwayScore.value;
+  document.querySelectorAll(".quick-score-btn").forEach((btn) => {
+    btn.classList.toggle(
+      "active",
+      home !== "" && away !== "" && btn.dataset.home === home && btn.dataset.away === away
+    );
+  });
+}
+
 function updatePredictionContext() {
   const match = matches.find((item) => item.id === matchSelect.value);
+  const quickScores = document.querySelector("#quickScores");
+  const deadlineBadge = document.querySelector("#predictionDeadlineBadge");
+  const predictionMessage = document.querySelector("#predictionMessage");
+
+  window.clearInterval(predictionDeadlineIntervalId);
+  predictionDeadlineIntervalId = null;
 
   if (!match) {
-    selectedMatchSummary.textContent = "Selecione um jogo para informar o placar.";
+    selectedMatchSummary.innerHTML = "<span>Selecione um jogo para informar o placar.</span>";
+    selectedMatchSummary.className = "selected-match";
     predictionHomeScore.setAttribute("aria-label", "Gols da selecao A no palpite");
     predictionAwayScore.setAttribute("aria-label", "Gols da selecao B no palpite");
+    quickScores.classList.add("hidden");
+    deadlineBadge.classList.add("hidden");
+    predictionMessage.className = "hint";
+    predictionMessage.textContent = "";
     return;
   }
 
-  selectedMatchSummary.textContent = `${match.home_team} x ${match.away_team}`;
   predictionHomeScore.setAttribute("aria-label", `Gols de ${match.home_team} no palpite`);
   predictionAwayScore.setAttribute("aria-label", `Gols de ${match.away_team} no palpite`);
+  quickScores.classList.remove("hidden");
+  predictionMessage.className = "hint";
+  predictionMessage.textContent = "";
+
+  const participantId = participantSelect.value;
+  const existing = participantId
+    ? predictions.find((p) => p.participant_id === participantId && p.match_id === match.id)
+    : null;
+  const scoreVisible = canShowMatchPredictions(match);
+
+  if (existing && scoreVisible) {
+    selectedMatchSummary.innerHTML = `<span class="existing-label">Palpite salvo</span><strong class="existing-score">${escapeHtml(match.home_team)} ${existing.home_score} × ${existing.away_score} ${escapeHtml(match.away_team)}</strong>`;
+    selectedMatchSummary.className = "selected-match has-prediction";
+  } else if (existing) {
+    selectedMatchSummary.innerHTML = `<span class="existing-label">Palpite salvo</span><span>${escapeHtml(match.home_team)} x ${escapeHtml(match.away_team)}</span>`;
+    selectedMatchSummary.className = "selected-match has-prediction";
+  } else {
+    selectedMatchSummary.innerHTML = `<span>${escapeHtml(match.home_team)} x ${escapeHtml(match.away_team)}</span>`;
+    selectedMatchSummary.className = "selected-match";
+  }
+
+  syncQuickScoreHighlight();
+
+  if (!match.kickoff_at) {
+    deadlineBadge.classList.add("hidden");
+    return;
+  }
+
+  deadlineBadge.classList.remove("hidden");
+  const deadline = new Date(match.kickoff_at).getTime() - PREDICTION_DEADLINE_MS;
+
+  function tickDeadline() {
+    const remaining = deadline - Date.now();
+    if (remaining <= 0) {
+      deadlineBadge.textContent = "Palpites encerrados para este jogo.";
+      deadlineBadge.className = "deadline-badge deadline-closed";
+      window.clearInterval(predictionDeadlineIntervalId);
+      predictionDeadlineIntervalId = null;
+      return;
+    }
+    const totalSecs = Math.floor(remaining / 1000);
+    const hours = Math.floor(totalSecs / 3600);
+    const minutes = Math.floor((totalSecs % 3600) / 60);
+    const seconds = totalSecs % 60;
+    let text;
+    if (hours >= 24) {
+      const days = Math.floor(hours / 24);
+      text = `Fecha em ${days}d ${hours % 24}h`;
+    } else if (hours > 0) {
+      text = `Fecha em ${hours}h ${String(minutes).padStart(2, "0")}min`;
+    } else if (minutes > 0) {
+      text = `Fecha em ${minutes}min ${String(seconds).padStart(2, "0")}seg`;
+    } else {
+      text = `Fecha em ${seconds}seg`;
+    }
+    deadlineBadge.textContent = text;
+    deadlineBadge.className = remaining < 3600000 ? "deadline-badge deadline-urgent" : "deadline-badge";
+  }
+
+  tickDeadline();
+  predictionDeadlineIntervalId = window.setInterval(tickDeadline, 1000);
 }
 
 function renderRanking() {
@@ -606,11 +701,18 @@ function renderRanking() {
 
   calculateRanking().forEach((participant, index) => {
     const participantName = escapeHtml(participant.name);
+    const initial = escapeHtml(participant.name.trim()[0]?.toUpperCase() || "?");
+    const photoSrc = getParticipantPhoto(participant.name);
+    const avatarImg = photoSrc
+      ? `<img src="${photoSrc}" alt="" aria-hidden="true" onerror="this.parentElement.classList.add('no-photo')">`
+      : "";
     const row = document.createElement("article");
     row.className = "ranking-item";
+    row.dataset.rank = index + 1;
     row.setAttribute("aria-label", `${participant.name}, posicao ${index + 1}, ${participant.total} pontos`);
     row.innerHTML = `
       <span class="rank-position" aria-label="Posicao ${index + 1}">${index + 1}</span>
+      <div class="rank-avatar ${photoSrc ? "" : "no-photo"}" data-initial="${initial}">${avatarImg}</div>
       <div class="rank-main">
         <strong>${participantName}</strong>
         <small>${participant.matchPoints} pontos - ${participant.bonusPoints + participant.manualPoints} bonus</small>
@@ -619,6 +721,9 @@ function renderRanking() {
       <span class="badge ${participant.paid ? "paid" : "pending"}">${participant.paid ? "Pago" : "Pendente"}</span>
       <button class="danger admin-action" type="button" data-remove-participant="${participant.id}" aria-label="Remover participante ${participantName}">Remover</button>
     `;
+    if (participant.id === preferredParticipantId) {
+      row.classList.add("is-me");
+    }
     rankingTable.appendChild(row);
   });
 
@@ -719,10 +824,6 @@ function renderMatches() {
   }
 }
 
-function finalPointsFor(prediction, match) {
-  return pointsFor(prediction, match);
-}
-
 function finalistPicksText(participant) {
   return [participant.finalist_one_pick, participant.finalist_two_pick]
     .filter(Boolean)
@@ -791,7 +892,7 @@ function renderAdminPanel() {
     const matchLabel = `${match.home_team} x ${match.away_team}`;
     const escapedMatchLabel = escapeHtml(matchLabel);
     const autoPoints = automaticPointsFor(prediction, match);
-    const finalPoints = finalPointsFor(prediction, match);
+    const finalPoints = pointsFor(prediction, match);
     const result =
       match.home_score === null || match.away_score === null
         ? "Aberto"
@@ -878,6 +979,62 @@ function renderAdminPanel() {
   adminBonusEmpty.style.display = participantsWithBonus.length ? "none" : "block";
 }
 
+function showLoadingBar() {
+  loadingBar.className = "active";
+}
+
+function hideLoadingBar() {
+  loadingBar.className = "done";
+  setTimeout(() => { loadingBar.className = ""; }, 600);
+}
+
+function getNextMatch() {
+  const now = Date.now();
+  return matches
+    .filter((m) => m.kickoff_at && new Date(m.kickoff_at).getTime() > now)
+    .sort((a, b) => new Date(a.kickoff_at) - new Date(b.kickoff_at))[0] || null;
+}
+
+function renderCountdownBanner() {
+  const banner = document.querySelector("#nextMatchBanner");
+  const match = getNextMatch();
+
+  if (!match) {
+    banner.classList.add("hidden");
+    window.clearInterval(countdownIntervalId);
+    countdownIntervalId = null;
+    return;
+  }
+
+  banner.classList.remove("hidden");
+  document.querySelector("#nextMatchTeams").textContent = `${match.home_team} x ${match.away_team}`;
+  const detail = [match.stage, formatMatchDate(match.kickoff_at)].filter(Boolean).join(" · ");
+  document.querySelector("#nextMatchDetail").textContent = detail;
+
+  function tick() {
+    const remaining = new Date(match.kickoff_at).getTime() - Date.now();
+    if (remaining <= 0) {
+      window.clearInterval(countdownIntervalId);
+      countdownIntervalId = null;
+      renderCountdownBanner();
+      return;
+    }
+    const totalSecs = Math.floor(remaining / 1000);
+    const days = Math.floor(totalSecs / 86400);
+    const hours = Math.floor((totalSecs % 86400) / 3600);
+    const minutes = Math.floor((totalSecs % 3600) / 60);
+    const seconds = totalSecs % 60;
+    document.querySelector("#cdDays").textContent = String(days).padStart(2, "0");
+    document.querySelector("#cdHours").textContent = String(hours).padStart(2, "0");
+    document.querySelector("#cdMinutes").textContent = String(minutes).padStart(2, "0");
+    document.querySelector("#cdSeconds").textContent = String(seconds).padStart(2, "0");
+  }
+
+  tick();
+  window.clearInterval(countdownIntervalId);
+  countdownIntervalId = window.setInterval(tick, 1000);
+}
+
 function scheduleNextKickoffRender() {
   window.clearTimeout(nextKickoffTimer);
 
@@ -905,10 +1062,13 @@ function render() {
   renderPublicBonusPanel();
   renderAdminPanel();
   fillSpecialResultForm();
+  renderCountdownBanner();
   scheduleNextKickoffRender();
 }
 
 async function loadAll() {
+  showLoadingBar();
+  try {
   const specialResultsResult = await supabaseClient
     .from("special_results")
     .select("*")
@@ -944,6 +1104,9 @@ async function loadAll() {
   predictionLogs = logsResult.error ? [] : logsResult.data || [];
 
   render();
+  } finally {
+    hideLoadingBar();
+  }
 }
 
 function normalizeOfficialMatches(payload) {
@@ -1228,12 +1391,15 @@ predictionForm.addEventListener("submit", async (event) => {
       await supabaseClient.from("predictions").insert(payload).throwOnError();
     }
 
+    const savedHome = payload.home_score;
+    const savedAway = payload.away_score;
     predictionForm.reset();
     preferredParticipantId = participantId;
     localStorage.setItem("bolao-participant-id", preferredParticipantId);
     participantSelect.value = participantId;
     predictionStageSelect.value = predictionDay;
-    message.textContent = "Palpite salvo. Voce ja pode escolher o proximo jogo.";
+    message.innerHTML = `✓ Palpite salvo: <strong>${escapeHtml(selectedMatch.home_team)} ${savedHome} × ${savedAway} ${escapeHtml(selectedMatch.away_team)}</strong>`;
+    message.className = "hint prediction-confirm";
     await loadAll();
   } catch (error) {
     message.textContent = "Erro ao salvar palpite.";
@@ -1561,9 +1727,22 @@ participantSelect.addEventListener("change", () => {
   } else {
     localStorage.removeItem("bolao-participant-id");
   }
+  renderRanking();
+  renderSelects();
 });
 
 matchSelect.addEventListener("change", updatePredictionContext);
+
+document.querySelector("#quickScores").addEventListener("click", (event) => {
+  const btn = event.target.closest(".quick-score-btn");
+  if (!btn) return;
+  predictionHomeScore.value = btn.dataset.home;
+  predictionAwayScore.value = btn.dataset.away;
+  syncQuickScoreHighlight();
+});
+
+predictionHomeScore.addEventListener("input", syncQuickScoreHighlight);
+predictionAwayScore.addEventListener("input", syncQuickScoreHighlight);
 
 adminMatchSelect.addEventListener("change", () => {
   selectedAdminMatch = adminMatchSelect.value;

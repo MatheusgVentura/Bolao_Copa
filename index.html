@@ -12,6 +12,7 @@
     <link rel="stylesheet" href="styles.css">
   </head>
   <body>
+    <div class="loading-bar" id="loadingBar" aria-hidden="true"></div>
     <a class="skip-link" href="#main-content">Pular para o conteudo principal</a>
     <main class="page" id="main-content" tabindex="-1">
       <section class="panel intro" aria-labelledby="page-title">
@@ -56,6 +57,24 @@
         <a href="#matches-title">Ver jogos</a>
         <span>Palpites fecham 1 minuto antes de cada jogo.</span>
       </nav>
+
+      <div class="next-match-banner hidden" id="nextMatchBanner" aria-label="Proximo jogo">
+        <div class="next-match-info">
+          <span class="next-match-label">Proximo jogo</span>
+          <div class="next-match-teams" id="nextMatchTeams"></div>
+          <span class="next-match-detail" id="nextMatchDetail"></span>
+        </div>
+        <div class="next-match-countdown" aria-label="Contagem regressiva">
+          <div class="cd-unit"><strong id="cdDays">00</strong><small>dias</small></div>
+          <span class="cd-sep" aria-hidden="true">:</span>
+          <div class="cd-unit"><strong id="cdHours">00</strong><small>h</small></div>
+          <span class="cd-sep" aria-hidden="true">:</span>
+          <div class="cd-unit"><strong id="cdMinutes">00</strong><small>min</small></div>
+          <span class="cd-sep" aria-hidden="true">:</span>
+          <div class="cd-unit"><strong id="cdSeconds">00</strong><small>seg</small></div>
+        </div>
+        <a class="next-match-cta" href="#predictionForm">Palpitar</a>
+      </div>
 
       <section class="grid" aria-label="Comece por aqui">
         <form class="panel form-panel participant-only" id="participantForm">
@@ -121,14 +140,33 @@
 
           <label for="matchSelect">Jogo</label>
           <select id="matchSelect" name="match_id" autocomplete="off" required></select>
-          <p class="hint" id="predictionDeadlineHint">Palpites encerram 1 minuto antes do inicio da partida.</p>
+
+          <div class="deadline-badge hidden" id="predictionDeadlineBadge" role="status" aria-live="polite"></div>
 
           <div class="selected-match" id="selectedMatchSummary" aria-live="polite">Selecione um jogo para informar o placar.</div>
-          <div class="score-row" role="group" aria-labelledby="predictionScoreLabel" aria-describedby="predictionDeadlineHint selectedMatchSummary">
+          <div class="score-row" role="group" aria-labelledby="predictionScoreLabel" aria-describedby="predictionDeadlineBadge selectedMatchSummary">
             <span class="visually-hidden" id="predictionScoreLabel">Placar do palpite</span>
             <input id="predictionHomeScore" name="prediction_home_score" type="number" min="0" max="30" inputmode="numeric" required aria-label="Gols da selecao A no palpite">
             <span>x</span>
             <input id="predictionAwayScore" name="prediction_away_score" type="number" min="0" max="30" inputmode="numeric" required aria-label="Gols da selecao B no palpite">
+          </div>
+
+          <div class="quick-scores hidden" id="quickScores" aria-label="Placares rapidos">
+            <span class="quick-scores-label">Placares rapidos</span>
+            <div class="quick-scores-grid">
+              <button type="button" class="quick-score-btn" data-home="0" data-away="0">0–0</button>
+              <button type="button" class="quick-score-btn" data-home="1" data-away="0">1–0</button>
+              <button type="button" class="quick-score-btn" data-home="0" data-away="1">0–1</button>
+              <button type="button" class="quick-score-btn" data-home="1" data-away="1">1–1</button>
+              <button type="button" class="quick-score-btn" data-home="2" data-away="0">2–0</button>
+              <button type="button" class="quick-score-btn" data-home="0" data-away="2">0–2</button>
+              <button type="button" class="quick-score-btn" data-home="2" data-away="1">2–1</button>
+              <button type="button" class="quick-score-btn" data-home="1" data-away="2">1–2</button>
+              <button type="button" class="quick-score-btn" data-home="2" data-away="2">2–2</button>
+              <button type="button" class="quick-score-btn" data-home="3" data-away="0">3–0</button>
+              <button type="button" class="quick-score-btn" data-home="0" data-away="3">0–3</button>
+              <button type="button" class="quick-score-btn" data-home="3" data-away="1">3–1</button>
+            </div>
           </div>
 
           <button class="primary" type="submit">Salvar meu palpite</button>
