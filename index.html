@@ -55,6 +55,7 @@
         <a class="quick-nav-primary" href="#predictionForm">Fazer palpite</a>
         <a href="#ranking-title">Ver ranking</a>
         <a href="#matches-title">Ver jogos</a>
+        <a href="#highlights-title">Ver destaques</a>
         <span>Palpites fecham 1 minuto antes de cada jogo.</span>
       </nav>
 
@@ -227,6 +228,44 @@
             <span>Cadastre os jogos para o pessoal palpitar.</span>
           </div>
         </section>
+      </section>
+
+      <section class="panel table-panel" id="highlightsPanel" aria-labelledby="highlights-title">
+        <div class="table-header">
+          <div>
+            <h2 id="highlights-title">Destaques</h2>
+            <p>Quem mais crava o placar, quem esta na sequencia mais quente e quem tem a maior taxa de acerto.</p>
+          </div>
+        </div>
+        <div class="highlights-grid">
+          <div class="highlight-block">
+            <h3>Mais cravadas</h3>
+            <p class="highlight-sub">Quantidade de placares exatos acertados.</p>
+            <div class="podium" id="podiumExact" aria-label="Ranking de placares cravados"></div>
+            <div class="empty" id="podiumExactEmpty">
+              <strong>Sem jogos finalizados ainda.</strong>
+              <span>O ranking aparece quando os primeiros resultados forem registrados.</span>
+            </div>
+          </div>
+          <div class="highlight-block">
+            <h3>Sequencia mais quente</h3>
+            <p class="highlight-sub">Jogos seguidos acertando o resultado (placar ou vencedor).</p>
+            <div class="podium" id="podiumStreak" aria-label="Ranking de sequencia de acertos"></div>
+            <div class="empty" id="podiumStreakEmpty">
+              <strong>Sem jogos finalizados ainda.</strong>
+              <span>O ranking aparece quando os primeiros resultados forem registrados.</span>
+            </div>
+          </div>
+          <div class="highlight-block">
+            <h3>Maior taxa de acerto</h3>
+            <p class="highlight-sub">% de palpites certeiros entre quem ja tem pelo menos 3 jogos conferidos.</p>
+            <div class="podium" id="podiumAccuracy" aria-label="Ranking de taxa de acerto"></div>
+            <div class="empty" id="podiumAccuracyEmpty">
+              <strong>Ainda sem dados suficientes.</strong>
+              <span>Precisa de pelo menos 3 jogos conferidos para entrar nesse ranking.</span>
+            </div>
+          </div>
+        </div>
       </section>
 
       <section class="panel table-panel" id="publicBonusPanel" aria-labelledby="public-bonus-title">

@@ -282,6 +282,128 @@ function participantsWithSpecialBonus() {
   return participants.filter(hasSpecialBonusPicks);
 }
 
+const MIN_PREDICTIONS_FOR_ACCURACY = 3;
+
+function isExactPrediction(prediction, match) {
+  return prediction.home_score === match.home_score && prediction.away_score === match.away_score;
+}
+
+function finishedPredictionsForParticipant(participant) {
+  return predictions
+    .filter((prediction) => prediction.participant_id === participant.id)
+    .map((prediction) => ({ prediction, match: matches.find((item) => item.id === prediction.match_id) }))
+    .filter(({ match }) => match && hasOfficialResult(match))
+    .sort((a, b) => {
+      const aTime = a.match.kickoff_at ? new Date(a.match.kickoff_at).getTime() : new Date(a.prediction.created_at).getTime();
+      const bTime = b.match.kickoff_at ? new Date(b.match.kickoff_at).getTime() : new Date(b.prediction.created_at).getTime();
+      return aTime - bTime;
+    });
+}
+
+function participantHighlightStats(participant) {
+  const finished = finishedPredictionsForParticipant(participant);
+  let exactCount = 0;
+  let hitCount = 0;
+  let bestStreak = 0;
+  let runningStreak = 0;
+
+  finished.forEach(({ prediction, match }) => {
+    if (isExactPrediction(prediction, match)) exactCount += 1;
+
+    if (pointsFor(prediction, match) > 0) {
+      hitCount += 1;
+      runningStreak += 1;
+      bestStreak = Math.max(bestStreak, runningStreak);
+    } else {
+      runningStreak = 0;
+    }
+  });
+
+  const totalFinished = finished.length;
+
+  return {
+    participant,
+    exactCount,
+    totalFinished,
+    accuracy: totalFinished ? (hitCount / totalFinished) * 100 : null,
+    currentStreak: runningStreak,
+    bestStreak
+  };
+}
+
+function calculateHighlights() {
+  return participants.map(participantHighlightStats);
+}
+
+function topHighlights(stats, { value, minSamples = 0, secondary } = {}) {
+  return stats
+    .filter((item) => item.totalFinished >= minSamples)
+    .filter((item) => value(item) !== null && value(item) !== undefined)
+    .sort((a, b) => {
+      const diff = value(b) - value(a);
+      if (diff !== 0) return diff;
+      if (secondary) {
+        const secondaryDiff = secondary(b) - secondary(a);
+        if (secondaryDiff !== 0) return secondaryDiff;
+      }
+      return a.participant.name.localeCompare(b.participant.name);
+    })
+    .slice(0, 3);
+}
+
+function podiumStepMarkup(rank, item, valueLabel) {
+  const participant = item.participant;
+  const name = escapeHtml(participant.name);
+  const initial = escapeHtml(participant.name.trim()[0]?.toUpperCase() || "?");
+  const photoSrc = getParticipantPhoto(participant.name);
+  const avatarImg = photoSrc
+    ? `<img src="${photoSrc}" alt="" aria-hidden="true" onerror="this.parentElement.classList.add('no-photo')">`
+    : "";
+
+  return `
+    <div class="podium-step" data-place="${rank}">
+      <div class="rank-avatar ${photoSrc ? "" : "no-photo"}" data-initial="${initial}">${avatarImg}</div>
+      <span class="podium-name">${name}</span>
+      <div class="podium-bar" aria-hidden="true">${rank}</div>
+      <span class="podium-value">${valueLabel}</span>
+    </div>
+  `;
+}
+
+function renderPodium(containerId, emptyId, items, valueLabelFn) {
+  const container = document.querySelector(`#${containerId}`);
+  const empty = document.querySelector(`#${emptyId}`);
+
+  container.innerHTML = items.map((item, index) => podiumStepMarkup(index + 1, item, valueLabelFn(item))).join("");
+  container.style.display = items.length ? "flex" : "none";
+  empty.style.display = items.length ? "none" : "block";
+}
+
+function renderHighlights() {
+  const stats = calculateHighlights();
+
+  renderPodium(
+    "podiumExact",
+    "podiumExactEmpty",
+    topHighlights(stats, { value: (item) => item.exactCount, secondary: (item) => item.totalFinished }),
+    (item) => `${item.exactCount} cravada${item.exactCount === 1 ? "" : "s"}`
+  );
+
+  renderPodium(
+    "podiumStreak",
+    "podiumStreakEmpty",
+    topHighlights(stats, { value: (item) => item.currentStreak, secondary: (item) => item.bestStreak }),
+    (item) => `${item.currentStreak} ${item.currentStreak === 1 ? "jogo" : "jogos"}`
+  );
+
+  renderPodium(
+    "podiumAccuracy",
+    "podiumAccuracyEmpty",
+    topHighlights(stats, { value: (item) => item.accuracy, minSamples: MIN_PREDICTIONS_FOR_ACCURACY }),
+    (item) => `${item.accuracy.toFixed(0)}%`
+  );
+}
+
 function matchPointsForParticipant(participant) {
   return predictions
     .filter((prediction) => prediction.participant_id === participant.id)
@@ -1059,6 +1181,7 @@ function render() {
   renderSelects();
   renderRanking();
   renderMatches();
+  renderHighlights();
   renderPublicBonusPanel();
   renderAdminPanel();
   fillSpecialResultForm();
