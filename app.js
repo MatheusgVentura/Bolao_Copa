@@ -497,6 +497,20 @@ function orderedMatchDays() {
   });
 }
 
+function defaultMatchDay(days) {
+  if (!days.length) return "";
+
+  const todayKey = matchDayKey({ kickoff_at: new Date().toISOString() });
+  if (days.includes(todayKey)) return todayKey;
+
+  const datedDays = days.filter((day) => day !== "sem-data");
+  const nextDay = datedDays.find((day) => day > todayKey);
+  if (nextDay) return nextDay;
+
+  const previousDay = [...datedDays].reverse().find((day) => day < todayKey);
+  return previousDay || days[0];
+}
+
 function option(label, value) {
   const item = document.createElement("option");
   item.value = value;
@@ -647,8 +661,9 @@ function renderSelects() {
   fillAdminBonusForm(adminBonusParticipantSelect.value);
   fillAdminManualPointsForm(adminManualPointsParticipantSelect.value);
 
-  const dayOptions = orderedMatchDays().map((day) => ({ label: dayLabel(day), value: day }));
-  const fallbackDay = dayOptions[0]?.value || "";
+  const matchDays = orderedMatchDays();
+  const dayOptions = matchDays.map((day) => ({ label: dayLabel(day), value: day }));
+  const fallbackDay = defaultMatchDay(matchDays);
 
   [
     { element: predictionStageSelect, value: selectedPredictionDay || fallbackDay },
@@ -861,7 +876,7 @@ function renderMatches() {
   if (!days.length) {
     selectedDay = "";
   } else if (!selectedDay || selectedDay === "all" || !days.includes(selectedDay)) {
-    selectedDay = days[0];
+    selectedDay = defaultMatchDay(days);
   }
 
   days.map((day) => ({ label: dayLabel(day), value: day })).forEach((tab) => {

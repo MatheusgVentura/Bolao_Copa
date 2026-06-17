@@ -2,7 +2,7 @@
 
 Bolão privado para a Copa do Mundo 2026. Site estático (HTML/CSS/JS puro, sem build) com [Supabase](https://supabase.com) como backend.
 
-## Funcionalidades
+## Funcionalidades 
 
 - Cadastro de participantes e palpites por jogo (placar exato).
 - Palpites fecham automaticamente 1 minuto antes do horário do jogo.
