@@ -59,6 +59,7 @@ const selectedMatchSummary = document.querySelector("#selectedMatchSummary");
 const predictionHomeScore = document.querySelector("#predictionHomeScore");
 const predictionAwayScore = document.querySelector("#predictionAwayScore");
 const loadingBar = document.querySelector("#loadingBar");
+const toastContainer = document.querySelector("#toastContainer");
 
 let supabaseClient = null;
 let appConfig = null;
@@ -79,6 +80,9 @@ let countdownIntervalId = null;
 let predictionDeadlineIntervalId = null;
 let resultSyncInProgress = false;
 let preferredParticipantId = localStorage.getItem("bolao-participant-id") || "";
+let hasLoadedMatchesOnce = false;
+const NOTIFIED_MATCHES_KEY = "bolao-notified-matches";
+const TOAST_DURATION_MS = 8000;
 
 function money(value) {
   return value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
@@ -605,6 +609,62 @@ function hasOfficialResult(match) {
   return match?.home_score !== null && match?.away_score !== null;
 }
 
+function getNotifiedMatchIds() {
+  try {
+    return new Set(JSON.parse(localStorage.getItem(NOTIFIED_MATCHES_KEY) || "[]"));
+  } catch {
+    return new Set();
+  }
+}
+
+function saveNotifiedMatchIds(notifiedIds, currentMatches) {
+  const validIds = new Set(currentMatches.map((match) => match.id));
+  localStorage.setItem(
+    NOTIFIED_MATCHES_KEY,
+    JSON.stringify([...notifiedIds].filter((id) => validIds.has(id)))
+  );
+}
+
+function showToast(message) {
+  const toast = document.createElement("div");
+  toast.className = "toast";
+  toast.innerHTML = `
+    <span>${message}</span>
+    <button type="button" aria-label="Fechar aviso">&times;</button>
+  `;
+
+  const dismiss = () => {
+    toast.classList.add("leaving");
+    toast.classList.remove("visible");
+    setTimeout(() => toast.remove(), 220);
+  };
+
+  toast.querySelector("button").addEventListener("click", dismiss);
+  toastContainer.appendChild(toast);
+  requestAnimationFrame(() => toast.classList.add("visible"));
+  setTimeout(dismiss, TOAST_DURATION_MS);
+}
+
+function notifyNewlyFinishedMatches(previousMatches, currentMatches) {
+  const notifiedIds = getNotifiedMatchIds();
+  let didNotify = false;
+
+  currentMatches.forEach((match) => {
+    if (!hasOfficialResult(match) || notifiedIds.has(match.id)) return;
+
+    const previousMatch = previousMatches.find((item) => item.id === match.id);
+    if (!previousMatch || hasOfficialResult(previousMatch)) return;
+
+    showToast(
+      `Resultado final: <strong>${escapeHtml(match.home_team)} ${match.home_score} x ${match.away_score} ${escapeHtml(match.away_team)}</strong>. Confira seus pontos.`
+    );
+    notifiedIds.add(match.id);
+    didNotify = true;
+  });
+
+  if (didNotify) saveNotifiedMatchIds(notifiedIds, currentMatches);
+}
+
 function parseOpenFootballDate(date, time) {
   if (!date) return null;
   if (!time) return new Date(`${date}T12:00:00Z`).toISOString();
@@ -879,13 +939,22 @@ function renderMatches() {
     selectedDay = defaultMatchDay(days);
   }
 
-  days.map((day) => ({ label: dayLabel(day), value: day })).forEach((tab) => {
+  days.map((day) => {
+    const dayMatches = matches.filter((match) => matchDayKey(match) === day);
+    const hasOpenMatch = dayMatches.some((match) => !hasMatchStarted(match) && canPredictMatch(match));
+    return { label: dayLabel(day), value: day, hasOpenMatch };
+  }).forEach((tab) => {
     const button = document.createElement("button");
     button.type = "button";
     button.className = tab.value === selectedDay ? "active" : "";
     button.dataset.day = tab.value;
     button.setAttribute("aria-pressed", tab.value === selectedDay ? "true" : "false");
-    button.textContent = tab.label;
+    button.innerHTML = tab.hasOpenMatch
+      ? `${escapeHtml(tab.label)}<span class="open-dot" aria-hidden="true"></span>`
+      : escapeHtml(tab.label);
+    if (tab.hasOpenMatch) {
+      button.setAttribute("aria-label", `${tab.label} - tem jogo aberto para palpitar`);
+    }
     groupTabs.appendChild(button);
   });
 
@@ -910,14 +979,18 @@ function renderMatches() {
 
     const canShowPredictions = canShowMatchPredictions(match);
     const canShowPoints = canShowMatchPoints(match);
-    const predictionsContent = matchPredictions.length
-      ? matchPredictions.map((prediction) => {
+    const sortedPredictions = canShowPoints
+      ? [...matchPredictions].sort((a, b) => pointsFor(b, match) - pointsFor(a, match))
+      : matchPredictions;
+    const predictionsContent = sortedPredictions.length
+      ? sortedPredictions.map((prediction) => {
         const participant = participants.find((item) => item.id === prediction.participant_id);
         const participantName = participant?.name || "Participante removido";
         const escapedParticipantName = escapeHtml(participantName);
         const points = pointsFor(prediction, match);
+        const rowClass = !canShowPoints ? "" : points > 0 ? "hit" : "miss";
         return `
-            <div>
+            <div class="${rowClass}">
               <span>${escapedParticipantName}</span>
               <strong>${canShowPredictions ? `${prediction.home_score} x ${prediction.away_score}` : "* x *"}</strong>
               <em>${canShowPoints ? `${points} pts` : "-- pts"}</em>
@@ -1236,10 +1309,15 @@ async function loadAll() {
     predictionsResult.error;
   if (error) throw error;
 
+  const previousMatches = matches;
+
   participants = participantsResult.data || [];
   matches = matchesResult.data || [];
   predictions = predictionsResult.data || [];
   predictionLogs = logsResult.error ? [] : logsResult.data || [];
+
+  if (hasLoadedMatchesOnce) notifyNewlyFinishedMatches(previousMatches, matches);
+  hasLoadedMatchesOnce = true;
 
   render();
   } finally {

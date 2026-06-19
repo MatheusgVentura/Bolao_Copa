@@ -128,6 +128,76 @@ caption {
   outline-offset: -2px;
 }
 
+.toast-container {
+  position: fixed;
+  right: 16px;
+  bottom: 16px;
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: min(340px, calc(100% - 32px));
+  pointer-events: none;
+}
+
+.toast {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: var(--radius);
+  padding: 12px 14px;
+  background: linear-gradient(135deg, rgba(8, 18, 17, 0.98), rgba(10, 68, 50, 0.96) 54%, rgba(11, 33, 54, 0.95));
+  box-shadow: var(--shadow-tight);
+  color: #fff;
+  font-size: 0.84rem;
+  line-height: 1.4;
+  opacity: 0;
+  transform: translateY(8px);
+  transition: opacity 0.22s ease, transform 0.22s ease;
+  pointer-events: auto;
+}
+
+.toast.visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.toast.leaving {
+  opacity: 0;
+  transform: translateY(8px);
+}
+
+.toast::before {
+  content: "";
+  flex: 0 0 auto;
+  width: 16px;
+  height: 16px;
+  margin-top: 1px;
+  border-radius: 999px;
+  background: url("soccer-ball.png") center / cover no-repeat;
+  box-shadow: 0 0 0 4px rgba(255, 255, 255, 0.12);
+}
+
+.toast strong {
+  color: #f8d47b;
+}
+
+.toast button {
+  flex: 0 0 auto;
+  margin: -2px -4px 0 auto;
+  border: none;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 1rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.toast button:hover {
+  color: #fff;
+}
+
 button,
 input,
 select {
@@ -231,9 +301,10 @@ h1 {
   max-width: 720px;
   margin-bottom: 14px;
   color: #fff;
-  font-family: Georgia, "Times New Roman", serif;
+  font-family: var(--body);
   font-size: clamp(3.25rem, 7vw, 5.9rem);
-  font-weight: 800;
+  font-weight: 900;
+  letter-spacing: -0.02em;
   line-height: 0.9;
   text-wrap: balance;
 }
@@ -625,11 +696,11 @@ h3 {
 .table-panel h2::before {
   content: "";
   flex: 0 0 auto;
-  width: 9px;
-  height: 9px;
+  width: 16px;
+  height: 16px;
   border-radius: 999px;
-  background: var(--primary);
-  box-shadow: 0 0 0 5px var(--primary-soft);
+  background: url("soccer-ball.png") center / cover no-repeat;
+  box-shadow: 0 0 0 4px var(--primary-soft);
 }
 
 .admin-card {
@@ -640,8 +711,7 @@ h3 {
 
 .admin-card h2::before,
 .admin-panel h2::before {
-  background: var(--gold);
-  box-shadow: 0 0 0 5px var(--gold-soft);
+  box-shadow: 0 0 0 4px var(--gold-soft);
 }
 
 .split,
@@ -1332,6 +1402,7 @@ td {
 }
 
 .group-tabs button {
+  position: relative;
   flex: 0 0 auto;
   min-height: 38px;
   border: 1px solid var(--line);
@@ -1340,6 +1411,21 @@ td {
   font-family: var(--mono);
   font-size: 0.78rem;
   white-space: nowrap;
+}
+
+.group-tabs button .open-dot {
+  position: absolute;
+  top: -3px;
+  right: -3px;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--gold);
+  box-shadow: 0 0 0 2px #fff;
+}
+
+.group-tabs button.active .open-dot {
+  box-shadow: 0 0 0 2px var(--primary);
 }
 
 .group-tabs button.active {
@@ -1489,6 +1575,18 @@ td {
   font-size: 0.8rem;
   font-style: normal;
   font-weight: 900;
+}
+
+.mini-table div.hit {
+  background: var(--primary-soft);
+}
+
+.mini-table div.miss {
+  background: var(--danger-soft);
+}
+
+.mini-table div.miss em {
+  color: var(--danger);
 }
 
 .mini-action {
