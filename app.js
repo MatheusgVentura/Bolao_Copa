@@ -60,6 +60,7 @@ const predictionHomeScore = document.querySelector("#predictionHomeScore");
 const predictionAwayScore = document.querySelector("#predictionAwayScore");
 const loadingBar = document.querySelector("#loadingBar");
 const toastContainer = document.querySelector("#toastContainer");
+const installAppButton = document.querySelector("#installAppButton");
 
 let supabaseClient = null;
 let appConfig = null;
@@ -81,6 +82,7 @@ let predictionDeadlineIntervalId = null;
 let resultSyncInProgress = false;
 let preferredParticipantId = localStorage.getItem("bolao-participant-id") || "";
 let hasLoadedMatchesOnce = false;
+let deferredInstallPrompt = null;
 const NOTIFIED_MATCHES_KEY = "bolao-notified-matches";
 const TOAST_DURATION_MS = 8000;
 
@@ -2124,4 +2126,56 @@ async function start() {
   }
 }
 
+function isStandaloneDisplay() {
+  return window.matchMedia("(display-mode: standalone)").matches || window.navigator.standalone === true;
+}
+
+function isIosDevice() {
+  return /iphone|ipad|ipod/i.test(window.navigator.userAgent) && !window.MSStream;
+}
+
+function updateInstallButtonVisibility() {
+  if (isStandaloneDisplay()) {
+    installAppButton.classList.add("hidden");
+    return;
+  }
+
+  installAppButton.classList.toggle("hidden", !deferredInstallPrompt && !isIosDevice());
+}
+
+window.addEventListener("beforeinstallprompt", (event) => {
+  event.preventDefault();
+  deferredInstallPrompt = event;
+  updateInstallButtonVisibility();
+});
+
+window.addEventListener("appinstalled", () => {
+  deferredInstallPrompt = null;
+  updateInstallButtonVisibility();
+  showToast("App instalado! Agora ele fica na sua tela inicial.");
+});
+
+installAppButton.addEventListener("click", async () => {
+  if (deferredInstallPrompt) {
+    deferredInstallPrompt.prompt();
+    await deferredInstallPrompt.userChoice;
+    deferredInstallPrompt = null;
+    updateInstallButtonVisibility();
+    return;
+  }
+
+  if (isIosDevice()) {
+    window.alert('No iPhone: toque no botao de compartilhar (o quadrado com a seta para cima) e depois em "Adicionar a Tela de Inicio".');
+  }
+});
+
+if ("serviceWorker" in navigator) {
+  window.addEventListener("load", () => {
+    navigator.serviceWorker.register("sw.js").catch((error) => {
+      console.error("Erro ao registrar service worker.", error);
+    });
+  });
+}
+
+updateInstallButtonVisibility();
 start();

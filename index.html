@@ -9,6 +9,11 @@
     <meta property="og:description" content="Palpites por jogo, ranking e bonus especiais.">
     <link rel="icon" type="image/png" href="soccer-ball.png">
     <link rel="apple-touch-icon" href="soccer-ball.png">
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#08734e">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Bolao Copa">
     <link rel="stylesheet" href="styles.css">
   </head>
   <body>
@@ -46,6 +51,7 @@
           Conectando ao Supabase...
         </p>
         <div class="admin-login">
+          <button class="secondary hidden" id="installAppButton" type="button">Instalar app</button>
           <button class="secondary" id="adminLoginButton" type="button">Entrar como admin</button>
           <button class="secondary hidden" id="adminLogoutButton" type="button">Sair do admin</button>
         </div>
