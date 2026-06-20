@@ -314,6 +314,10 @@
             <strong>Conferir palpites</strong>
             <span>Resultados, pontos e liberacao</span>
           </button>
+          <button class="admin-tab" id="adminPredictTab" type="button" role="tab" aria-controls="adminPredictPanel" aria-selected="false" data-admin-tab="predict">
+            <strong>Lancar palpite</strong>
+            <span>Inserir palpite por qualquer participante</span>
+          </button>
           <button class="admin-tab" id="adminManualTab" type="button" role="tab" aria-controls="adminManualPanel" aria-selected="false" data-admin-tab="manual">
             <strong>Pontos manuais</strong>
             <span>Ajuste individual no ranking</span>
@@ -373,6 +377,39 @@
               <span>Escolha outro dia ou aguarde os participantes apostarem.</span>
             </div>
           </div>
+        </section>
+
+        <section class="admin-workspace hidden" id="adminPredictPanel" role="tabpanel" aria-labelledby="adminPredictTab" data-admin-panel="predict">
+          <div class="admin-workspace-heading">
+            <div>
+              <h3>Lancar palpite</h3>
+              <p>Insira ou corrija o palpite de qualquer participante, mesmo depois do prazo encerrado para os usuarios.</p>
+            </div>
+          </div>
+          <form class="admin-tools admin-predict-form" id="adminPredictForm">
+            <div>
+              <label for="adminPredictParticipantSelect">Participante</label>
+              <select id="adminPredictParticipantSelect" required></select>
+            </div>
+            <div>
+              <label for="adminPredictStageSelect">Dia</label>
+              <select id="adminPredictStageSelect"></select>
+            </div>
+            <div>
+              <label for="adminPredictMatchSelect">Jogo</label>
+              <select id="adminPredictMatchSelect" required></select>
+            </div>
+            <div>
+              <label for="adminPredictHomeScore">Placar casa</label>
+              <input id="adminPredictHomeScore" type="number" min="0" max="30" inputmode="numeric" required>
+            </div>
+            <div>
+              <label for="adminPredictAwayScore">Placar visitante</label>
+              <input id="adminPredictAwayScore" type="number" min="0" max="30" inputmode="numeric" required>
+            </div>
+            <button class="primary compact-save" type="submit">Salvar palpite</button>
+            <p class="hint admin-predict-message" id="adminPredictMessage" role="status" aria-live="polite"></p>
+          </form>
         </section>
 
         <section class="admin-workspace hidden" id="adminManualPanel" role="tabpanel" aria-labelledby="adminManualTab" data-admin-panel="manual">

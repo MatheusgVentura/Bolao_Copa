@@ -1718,6 +1718,19 @@ td {
   background: linear-gradient(180deg, rgba(229, 245, 237, 0.58), rgba(255, 255, 255, 0.72));
 }
 
+.admin-predict-form {
+  grid-template-columns: minmax(180px, 1fr) minmax(140px, 160px) minmax(260px, 2fr) minmax(110px, 140px) minmax(110px, 140px) auto;
+  align-items: end;
+  border: 1px solid rgba(8, 115, 78, 0.18);
+  border-radius: var(--radius);
+  padding: 14px;
+  background: linear-gradient(180deg, rgba(229, 245, 237, 0.58), rgba(255, 255, 255, 0.72));
+}
+
+.admin-predict-message {
+  grid-column: 1 / -1;
+}
+
 #specialResultMessage {
   grid-column: 1 / -1;
 }

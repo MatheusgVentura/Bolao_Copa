@@ -11,6 +11,7 @@ const resultForm = document.querySelector("#resultForm");
 const specialResultForm = document.querySelector("#specialResultForm");
 const adminBonusForm = document.querySelector("#adminBonusForm");
 const adminManualPointsForm = document.querySelector("#adminManualPointsForm");
+const adminPredictForm = document.querySelector("#adminPredictForm");
 const refreshButton = document.querySelector("#refreshButton");
 const importMatchesButton = document.querySelector("#importMatchesButton");
 const adminLoginButton = document.querySelector("#adminLoginButton");
@@ -47,6 +48,12 @@ const adminBonusMessage = document.querySelector("#adminBonusMessage");
 const adminManualPointsParticipantSelect = document.querySelector("#adminManualPointsParticipantSelect");
 const adminManualPointsInput = document.querySelector("#adminManualPointsInput");
 const adminManualPointsMessage = document.querySelector("#adminManualPointsMessage");
+const adminPredictParticipantSelect = document.querySelector("#adminPredictParticipantSelect");
+const adminPredictStageSelect = document.querySelector("#adminPredictStageSelect");
+const adminPredictMatchSelect = document.querySelector("#adminPredictMatchSelect");
+const adminPredictHomeScore = document.querySelector("#adminPredictHomeScore");
+const adminPredictAwayScore = document.querySelector("#adminPredictAwayScore");
+const adminPredictMessage = document.querySelector("#adminPredictMessage");
 const adminTabButtons = [...document.querySelectorAll("[data-admin-tab]")];
 const adminTabPanels = [...document.querySelectorAll("[data-admin-panel]")];
 const publicBonusPanel = document.querySelector("#publicBonusPanel");
@@ -72,6 +79,8 @@ let specialResults = null;
 let selectedDay = "all";
 let selectedAdminDay = "all";
 let selectedAdminMatch = "";
+let selectedAdminPredictDay = "all";
+let selectedAdminPredictMatch = "";
 let selectedLogDay = "";
 let selectedLogMatch = "all";
 let isAdmin = sessionStorage.getItem("bolao-admin") === "true";
@@ -433,6 +442,14 @@ function fillAdminManualPointsForm(participantId) {
   adminManualPointsInput.value = participant?.manual_bonus_points ?? 0;
 }
 
+function fillAdminPredictForm(participantId, matchId) {
+  const existingPrediction = predictions.find(
+    (prediction) => prediction.participant_id === participantId && prediction.match_id === matchId
+  );
+  adminPredictHomeScore.value = existingPrediction ? existingPrediction.home_score : "";
+  adminPredictAwayScore.value = existingPrediction ? existingPrediction.away_score : "";
+}
+
 function fillSpecialResultForm() {
   document.querySelector("#officialTopScorer").value = specialResults?.top_scorer || "";
   document.querySelector("#officialFinalistOne").value = specialResults?.finalist_one || "";
@@ -685,12 +702,15 @@ function renderSelects() {
   const selectedParticipant = participantSelect.value || preferredParticipantId;
   const selectedAdminBonusParticipant = adminBonusParticipantSelect.value;
   const selectedAdminManualPointsParticipant = adminManualPointsParticipantSelect.value;
+  const selectedAdminPredictParticipant = adminPredictParticipantSelect.value;
   const selectedPredictionDay = predictionStageSelect.value;
   const selectedMatch = matchSelect.value;
   const selectedResultDay = resultStageSelect.value;
   const selectedResultMatch = resultMatchSelect.value;
   const selectedAdminDayValue = adminStageSelect.value || selectedAdminDay;
   const selectedAdminMatchValue = adminMatchSelect.value || selectedAdminMatch;
+  const selectedAdminPredictDayValue = adminPredictStageSelect.value || selectedAdminPredictDay;
+  const selectedAdminPredictMatchValue = adminPredictMatchSelect.value || selectedAdminPredictMatch;
   const selectedLogDayValue = predictionLogDaySelect.value || selectedLogDay;
   const selectedLogMatchValue = predictionLogMatchSelect.value || selectedLogMatch;
 
@@ -700,10 +720,13 @@ function renderSelects() {
   adminBonusParticipantSelect.appendChild(option("Escolha o participante", ""));
   adminManualPointsParticipantSelect.innerHTML = "";
   adminManualPointsParticipantSelect.appendChild(option("Escolha o participante", ""));
+  adminPredictParticipantSelect.innerHTML = "";
+  adminPredictParticipantSelect.appendChild(option("Escolha o participante", ""));
   participants.forEach((participant) => {
     participantSelect.appendChild(option(participant.name, participant.id));
     adminBonusParticipantSelect.appendChild(option(participant.name, participant.id));
     adminManualPointsParticipantSelect.appendChild(option(participant.name, participant.id));
+    adminPredictParticipantSelect.appendChild(option(participant.name, participant.id));
   });
   participantSelect.value = participants.some((participant) => participant.id === selectedParticipant)
     ? selectedParticipant
@@ -720,6 +743,9 @@ function renderSelects() {
   adminManualPointsParticipantSelect.value = participants.some((participant) => participant.id === selectedAdminManualPointsParticipant)
     ? selectedAdminManualPointsParticipant
     : "";
+  adminPredictParticipantSelect.value = participants.some((participant) => participant.id === selectedAdminPredictParticipant)
+    ? selectedAdminPredictParticipant
+    : "";
   fillAdminBonusForm(adminBonusParticipantSelect.value);
   fillAdminManualPointsForm(adminManualPointsParticipantSelect.value);
 
@@ -731,6 +757,7 @@ function renderSelects() {
     { element: predictionStageSelect, value: selectedPredictionDay || fallbackDay },
     { element: resultStageSelect, value: selectedResultDay || fallbackDay },
     { element: adminStageSelect, value: selectedAdminDayValue || fallbackDay },
+    { element: adminPredictStageSelect, value: selectedAdminPredictDayValue || fallbackDay },
     { element: predictionLogDaySelect, value: selectedLogDayValue || fallbackDay }
   ].forEach(({ element, value }) => {
     element.innerHTML = "";
@@ -741,6 +768,7 @@ function renderSelects() {
   });
 
   selectedAdminDay = adminStageSelect.value;
+  selectedAdminPredictDay = adminPredictStageSelect.value;
   selectedLogDay = predictionLogDaySelect.value;
 
   const adminMatches = matches.filter((match) => matchDayKey(match) === selectedAdminDay);
@@ -754,6 +782,19 @@ function renderSelects() {
     ? selectedAdminMatchValue
     : adminMatches[0]?.id || "";
   adminMatchSelect.value = selectedAdminMatch;
+
+  const adminPredictMatches = matches.filter((match) => matchDayKey(match) === selectedAdminPredictDay);
+  adminPredictMatchSelect.innerHTML = "";
+  adminPredictMatches.forEach((match) => {
+    const date = formatMatchDate(match.kickoff_at);
+    const label = `${match.home_team} x ${match.away_team} - ${match.stage}${date ? ` - ${date}` : ""}`;
+    adminPredictMatchSelect.appendChild(option(label, match.id));
+  });
+  selectedAdminPredictMatch = adminPredictMatches.some((match) => match.id === selectedAdminPredictMatchValue)
+    ? selectedAdminPredictMatchValue
+    : adminPredictMatches[0]?.id || "";
+  adminPredictMatchSelect.value = selectedAdminPredictMatch;
+  fillAdminPredictForm(adminPredictParticipantSelect.value, adminPredictMatchSelect.value);
 
   const logMatches = new Map();
   predictionLogs
@@ -1820,6 +1861,48 @@ adminManualPointsForm.addEventListener("submit", async (event) => {
   }
 });
 
+adminPredictForm.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  if (!requireAdmin()) return;
+
+  const participantId = adminPredictParticipantSelect.value;
+  const matchId = adminPredictMatchSelect.value;
+
+  if (!participantId || !matchId) {
+    adminPredictMessage.textContent = "Escolha o participante e o jogo.";
+    return;
+  }
+
+  const existingPrediction = predictions.find(
+    (prediction) => prediction.participant_id === participantId && prediction.match_id === matchId
+  );
+
+  const payload = {
+    participant_id: participantId,
+    match_id: matchId,
+    home_score: numberValue("#adminPredictHomeScore"),
+    away_score: numberValue("#adminPredictAwayScore")
+  };
+
+  try {
+    if (existingPrediction) {
+      await supabaseClient
+        .from("predictions")
+        .update(payload)
+        .eq("id", existingPrediction.id)
+        .throwOnError();
+    } else {
+      await supabaseClient.from("predictions").insert(payload).throwOnError();
+    }
+
+    adminPredictMessage.textContent = "Palpite salvo.";
+    await loadAll();
+  } catch (error) {
+    adminPredictMessage.textContent = "Erro ao salvar palpite.";
+    console.error(error);
+  }
+});
+
 adminBonusForm.addEventListener("submit", async (event) => {
   event.preventDefault();
   if (!requireAdmin()) return;
@@ -1965,6 +2048,23 @@ predictionAwayScore.addEventListener("input", syncQuickScoreHighlight);
 adminMatchSelect.addEventListener("change", () => {
   selectedAdminMatch = adminMatchSelect.value;
   renderAdminPanel();
+});
+
+adminPredictStageSelect.addEventListener("change", () => {
+  selectedAdminPredictDay = adminPredictStageSelect.value;
+  selectedAdminPredictMatch = "";
+  renderSelects();
+});
+
+adminPredictMatchSelect.addEventListener("change", () => {
+  selectedAdminPredictMatch = adminPredictMatchSelect.value;
+  fillAdminPredictForm(adminPredictParticipantSelect.value, adminPredictMatchSelect.value);
+  adminPredictMessage.textContent = "";
+});
+
+adminPredictParticipantSelect.addEventListener("change", () => {
+  fillAdminPredictForm(adminPredictParticipantSelect.value, adminPredictMatchSelect.value);
+  adminPredictMessage.textContent = "";
 });
 
 predictionLogDaySelect.addEventListener("change", () => {
