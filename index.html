@@ -2,6 +2,11 @@
 <html lang="pt-BR">
   <head>
     <meta charset="utf-8">
+    <script>
+      if (localStorage.getItem("bolao-theme") === "dark") {
+        document.documentElement.setAttribute("data-theme", "dark");
+      }
+    </script>
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Bolao da Copa</title>
     <meta name="description" content="Bolao privado da Copa com palpites, ranking e painel admin.">
@@ -51,6 +56,7 @@
           Conectando ao Supabase...
         </p>
         <div class="admin-login">
+          <button class="secondary" id="themeToggleButton" type="button" aria-pressed="false">Modo escuro</button>
           <button class="secondary hidden" id="installAppButton" type="button">Instalar app</button>
           <button class="secondary" id="adminLoginButton" type="button">Entrar como admin</button>
           <button class="secondary hidden" id="adminLogoutButton" type="button">Sair do admin</button>

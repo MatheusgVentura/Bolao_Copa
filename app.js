@@ -69,6 +69,7 @@ const predictionAwayScore = document.querySelector("#predictionAwayScore");
 const loadingBar = document.querySelector("#loadingBar");
 const toastContainer = document.querySelector("#toastContainer");
 const installAppButton = document.querySelector("#installAppButton");
+const themeToggleButton = document.querySelector("#themeToggleButton");
 
 let supabaseClient = null;
 let appConfig = null;
@@ -2292,6 +2293,20 @@ installAppButton.addEventListener("click", async () => {
     window.alert('No iPhone: toque no botao de compartilhar (o quadrado com a seta para cima) e depois em "Adicionar a Tela de Inicio".');
   }
 });
+
+function applyTheme(theme) {
+  document.documentElement.setAttribute("data-theme", theme);
+  localStorage.setItem("bolao-theme", theme);
+  themeToggleButton.textContent = theme === "dark" ? "Modo claro" : "Modo escuro";
+  themeToggleButton.setAttribute("aria-pressed", theme === "dark" ? "true" : "false");
+}
+
+themeToggleButton.addEventListener("click", () => {
+  const isDark = document.documentElement.getAttribute("data-theme") === "dark";
+  applyTheme(isDark ? "light" : "dark");
+});
+
+applyTheme(document.documentElement.getAttribute("data-theme") === "dark" ? "dark" : "light");
 
 if ("serviceWorker" in navigator) {
   window.addEventListener("load", () => {
