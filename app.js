@@ -60,6 +60,7 @@ const publicBonusPanel = document.querySelector("#publicBonusPanel");
 const publicBonusTable = document.querySelector("#publicBonusTable");
 const publicBonusEmpty = document.querySelector("#publicBonusEmpty");
 const groupTabs = document.querySelector("#groupTabs");
+const teamSearchInput = document.querySelector("#teamSearchInput");
 const matchesList = document.querySelector("#matchesList");
 const matchesEmpty = document.querySelector("#matchesEmpty");
 const selectedMatchSummary = document.querySelector("#selectedMatchSummary");
@@ -77,6 +78,7 @@ let predictions = [];
 let predictionLogs = [];
 let specialResults = null;
 let selectedDay = "all";
+let teamSearchQuery = "";
 let selectedAdminDay = "all";
 let selectedAdminMatch = "";
 let selectedAdminPredictDay = "all";
@@ -975,6 +977,7 @@ function renderMatches() {
   groupTabs.innerHTML = "";
 
   const days = orderedMatchDays();
+  const isSearching = Boolean(teamSearchQuery);
 
   if (!days.length) {
     selectedDay = "";
@@ -982,26 +985,37 @@ function renderMatches() {
     selectedDay = defaultMatchDay(days);
   }
 
-  days.map((day) => {
-    const dayMatches = matches.filter((match) => matchDayKey(match) === day);
-    const hasOpenMatch = dayMatches.some((match) => !hasMatchStarted(match) && canPredictMatch(match));
-    return { label: dayLabel(day), value: day, hasOpenMatch };
-  }).forEach((tab) => {
-    const button = document.createElement("button");
-    button.type = "button";
-    button.className = tab.value === selectedDay ? "active" : "";
-    button.dataset.day = tab.value;
-    button.setAttribute("aria-pressed", tab.value === selectedDay ? "true" : "false");
-    button.innerHTML = tab.hasOpenMatch
-      ? `${escapeHtml(tab.label)}<span class="open-dot" aria-hidden="true"></span>`
-      : escapeHtml(tab.label);
-    if (tab.hasOpenMatch) {
-      button.setAttribute("aria-label", `${tab.label} - tem jogo aberto para palpitar`);
-    }
-    groupTabs.appendChild(button);
-  });
+  groupTabs.style.display = isSearching ? "none" : "";
 
-  const visibleMatches = matches.filter((match) => matchDayKey(match) === selectedDay);
+  if (!isSearching) {
+    days.map((day) => {
+      const dayMatches = matches.filter((match) => matchDayKey(match) === day);
+      const hasOpenMatch = dayMatches.some((match) => !hasMatchStarted(match) && canPredictMatch(match));
+      return { label: dayLabel(day), value: day, hasOpenMatch };
+    }).forEach((tab) => {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = tab.value === selectedDay ? "active" : "";
+      button.dataset.day = tab.value;
+      button.setAttribute("aria-pressed", tab.value === selectedDay ? "true" : "false");
+      button.innerHTML = tab.hasOpenMatch
+        ? `${escapeHtml(tab.label)}<span class="open-dot" aria-hidden="true"></span>`
+        : escapeHtml(tab.label);
+      if (tab.hasOpenMatch) {
+        button.setAttribute("aria-label", `${tab.label} - tem jogo aberto para palpitar`);
+      }
+      groupTabs.appendChild(button);
+    });
+  }
+
+  const visibleMatches = isSearching
+    ? matches
+      .filter((match) =>
+        normalizeText(match.home_team).includes(teamSearchQuery) ||
+        normalizeText(match.away_team).includes(teamSearchQuery)
+      )
+      .sort((a, b) => new Date(b.kickoff_at || 0) - new Date(a.kickoff_at || 0))
+    : matches.filter((match) => matchDayKey(match) === selectedDay);
 
   visibleMatches.forEach((match) => {
     const matchLabel = `${match.home_team} x ${match.away_team}`;
@@ -1069,8 +1083,13 @@ function renderMatches() {
   matchesEmpty.style.display = matches.length ? "none" : "block";
   if (matches.length && !visibleMatches.length) {
     matchesEmpty.style.display = "block";
-    matchesEmpty.querySelector("strong").textContent = "Nenhum jogo nesse filtro.";
-    matchesEmpty.querySelector("span").textContent = "Escolha outro dia.";
+    if (isSearching) {
+      matchesEmpty.querySelector("strong").textContent = "Nenhum jogo encontrado para esse time.";
+      matchesEmpty.querySelector("span").textContent = "Verifique o nome e tente novamente.";
+    } else {
+      matchesEmpty.querySelector("strong").textContent = "Nenhum jogo nesse filtro.";
+      matchesEmpty.querySelector("span").textContent = "Escolha outro dia.";
+    }
   } else {
     matchesEmpty.querySelector("strong").textContent = "Nenhum jogo cadastrado.";
     matchesEmpty.querySelector("span").textContent = "Cadastre os jogos para o pessoal palpitar.";
@@ -1992,6 +2011,11 @@ groupTabs.addEventListener("click", (event) => {
   if (!button) return;
 
   selectedDay = button.dataset.day;
+  renderMatches();
+});
+
+teamSearchInput.addEventListener("input", (event) => {
+  teamSearchQuery = normalizeText(event.target.value);
   renderMatches();
 });
 

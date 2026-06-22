@@ -1392,6 +1392,15 @@ td {
   gap: 14px;
 }
 
+.team-search-row {
+  margin-bottom: 12px;
+}
+
+.team-search-row input {
+  width: 100%;
+  max-width: 320px;
+}
+
 .group-tabs {
   display: flex;
   gap: 8px;
