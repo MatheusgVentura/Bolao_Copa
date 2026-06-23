@@ -610,6 +610,7 @@ h3 {
   grid-template-columns: minmax(320px, 0.5fr) minmax(640px, 1.5fr);
   gap: 20px;
   align-items: start;
+  margin-bottom: 20px;
 }
 
 .grid > *,
@@ -624,6 +625,11 @@ h3 {
 .form-panel,
 .table-panel {
   padding: 22px;
+}
+
+#highlightsPanel,
+#publicBonusPanel {
+  margin-bottom: 20px;
 }
 
 .form-panel {
@@ -1539,6 +1545,41 @@ td {
 .match-result.finished small,
 .match-result.finished strong {
   color: var(--primary-dark);
+}
+
+.match-result.live {
+  position: relative;
+  border-color: rgba(161, 40, 32, 0.35);
+  background: var(--danger-soft);
+  box-shadow: 0 0 0 3px rgba(161, 40, 32, 0.1);
+}
+
+.match-result.live small,
+.match-result.live strong {
+  color: var(--danger);
+}
+
+.match-result.live small::before {
+  content: "";
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  margin-right: 5px;
+  border-radius: 50%;
+  background: var(--danger);
+  animation: live-pulse 1.4s ease-in-out infinite;
+  vertical-align: middle;
+}
+
+@keyframes live-pulse {
+  0%, 100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.35;
+    transform: scale(1.3);
+  }
 }
 
 .mini-table {

@@ -422,6 +422,52 @@ function renderHighlights() {
   );
 }
 
+function dailyDuelDayKey(days) {
+  if (!days.length) return "";
+
+  const todayKey = matchDayKey({ kickoff_at: new Date().toISOString() });
+  if (days.includes(todayKey)) return todayKey;
+
+  const datedDays = days.filter((day) => day !== "sem-data");
+  const previousDay = [...datedDays].reverse().find((day) => day < todayKey);
+  if (previousDay) return previousDay;
+
+  const nextDay = datedDays.find((day) => day > todayKey);
+  return nextDay || days[0];
+}
+
+function calculateDailyDuelStats(dayKey) {
+  return participants.map((participant) => {
+    const dayResults = predictions
+      .filter((prediction) => prediction.participant_id === participant.id)
+      .map((prediction) => ({ prediction, match: matches.find((item) => item.id === prediction.match_id) }))
+      .filter(({ match }) => match && matchDayKey(match) === dayKey && hasOfficialResult(match));
+
+    const dayPoints = dayResults.reduce((total, { prediction, match }) => total + pointsFor(prediction, match), 0);
+
+    return { participant, dayPoints, totalFinished: dayResults.length };
+  });
+}
+
+function renderDailyDuel() {
+  const dayKey = dailyDuelDayKey(orderedMatchDays());
+  const subtitle = document.querySelector("#dailyDuelSub");
+  if (subtitle) {
+    subtitle.textContent = dayKey
+      ? `Quem mais pontuou nos jogos de ${dayLabel(dayKey)}.`
+      : "Quem mais pontuou no dia.";
+  }
+
+  const stats = dayKey ? calculateDailyDuelStats(dayKey) : [];
+
+  renderPodium(
+    "podiumDailyDuel",
+    "podiumDailyDuelEmpty",
+    topHighlights(stats, { value: (item) => item.dayPoints, minSamples: 1 }),
+    (item) => `${item.dayPoints} pt${item.dayPoints === 1 ? "" : "s"}`
+  );
+}
+
 function matchPointsForParticipant(participant) {
   return predictions
     .filter((prediction) => prediction.participant_id === participant.id)
@@ -1023,10 +1069,17 @@ function renderMatches() {
     const escapedMatchLabel = escapeHtml(matchLabel);
     const escapedMatchLabelForAttribute = escapeHtml(matchLabel);
     const matchPredictions = predictions.filter((prediction) => prediction.match_id === match.id);
+    const matchLiveState = hasOfficialResult(match)
+      ? "finished"
+      : hasMatchStarted(match)
+      ? "live"
+      : "open";
     const result =
-      match.home_score === null || match.away_score === null
-        ? "Resultado aberto"
-        : `${match.home_score} x ${match.away_score}`;
+      matchLiveState === "finished"
+        ? `${match.home_score} x ${match.away_score}`
+        : matchLiveState === "live"
+        ? "Aguardando resultado"
+        : "Resultado aberto";
     const details = [match.stage, formatMatchDate(match.kickoff_at), match.venue]
       .filter(Boolean)
       .join(" - ");
@@ -1068,8 +1121,8 @@ function renderMatches() {
           <span>${escapeHtml(details)}</span>
           <span>${escapeHtml(predictionStatus)}</span>
         </div>
-        <div class="match-result ${match.home_score === null || match.away_score === null ? "open" : "finished"}">
-          <small>${match.home_score === null || match.away_score === null ? "Aberto" : "Final"}</small>
+        <div class="match-result ${matchLiveState}">
+          <small>${matchLiveState === "finished" ? "Final" : matchLiveState === "live" ? "Em andamento" : "Aberto"}</small>
           <strong>${result}</strong>
         </div>
         <button class="danger admin-action" type="button" data-remove-match="${match.id}" aria-label="Remover jogo ${escapedMatchLabelForAttribute}">Remover</button>
@@ -1333,6 +1386,7 @@ function render() {
   renderRanking();
   renderMatches();
   renderHighlights();
+  renderDailyDuel();
   renderPublicBonusPanel();
   renderAdminPanel();
   fillSpecialResultForm();
