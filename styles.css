@@ -2237,6 +2237,11 @@ td {
   border-top-color: var(--line);
 }
 
+[data-theme="dark"] .mini-table div.hit,
+[data-theme="dark"] .mini-table div.miss {
+  background: transparent;
+}
+
 [data-theme="dark"] .mini-table p {
   border-color: var(--line);
   background: var(--panel-soft);
