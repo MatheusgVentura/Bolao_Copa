@@ -159,9 +159,15 @@
           <div class="selected-match" id="selectedMatchSummary" aria-live="polite">Selecione um jogo para informar o placar.</div>
           <div class="score-row" role="group" aria-labelledby="predictionScoreLabel" aria-describedby="predictionDeadlineBadge selectedMatchSummary">
             <span class="visually-hidden" id="predictionScoreLabel">Placar do palpite</span>
-            <input id="predictionHomeScore" name="prediction_home_score" type="number" min="0" max="30" inputmode="numeric" required aria-label="Gols da selecao A no palpite">
+            <div class="score-team">
+              <span class="score-team-name" id="predictionHomeTeamName">Selecao A</span>
+              <input id="predictionHomeScore" name="prediction_home_score" type="number" min="0" max="30" inputmode="numeric" required aria-label="Gols da selecao A no palpite">
+            </div>
             <span>x</span>
-            <input id="predictionAwayScore" name="prediction_away_score" type="number" min="0" max="30" inputmode="numeric" required aria-label="Gols da selecao B no palpite">
+            <div class="score-team">
+              <span class="score-team-name" id="predictionAwayTeamName">Selecao B</span>
+              <input id="predictionAwayScore" name="prediction_away_score" type="number" min="0" max="30" inputmode="numeric" required aria-label="Gols da selecao B no palpite">
+            </div>
           </div>
 
           <div class="quick-scores hidden" id="quickScores" aria-label="Placares rapidos">

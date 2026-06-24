@@ -755,10 +755,28 @@ h3 {
   font-weight: 900;
 }
 
-.score-row span {
+.score-row > span {
   color: var(--muted);
   font-family: var(--mono);
   font-weight: 900;
+}
+
+.score-team {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.score-team-name {
+  font-size: 0.74rem;
+  font-weight: 800;
+  letter-spacing: 0.01em;
+  text-align: center;
+  color: var(--primary-dark);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .selected-match.has-prediction {

@@ -66,6 +66,8 @@ const matchesEmpty = document.querySelector("#matchesEmpty");
 const selectedMatchSummary = document.querySelector("#selectedMatchSummary");
 const predictionHomeScore = document.querySelector("#predictionHomeScore");
 const predictionAwayScore = document.querySelector("#predictionAwayScore");
+const predictionHomeTeamName = document.querySelector("#predictionHomeTeamName");
+const predictionAwayTeamName = document.querySelector("#predictionAwayTeamName");
 const loadingBar = document.querySelector("#loadingBar");
 const toastContainer = document.querySelector("#toastContainer");
 const installAppButton = document.querySelector("#installAppButton");
@@ -913,6 +915,8 @@ function updatePredictionContext() {
     selectedMatchSummary.className = "selected-match";
     predictionHomeScore.setAttribute("aria-label", "Gols da selecao A no palpite");
     predictionAwayScore.setAttribute("aria-label", "Gols da selecao B no palpite");
+    predictionHomeTeamName.textContent = "Selecao A";
+    predictionAwayTeamName.textContent = "Selecao B";
     quickScores.classList.add("hidden");
     deadlineBadge.classList.add("hidden");
     predictionMessage.className = "hint";
@@ -922,6 +926,8 @@ function updatePredictionContext() {
 
   predictionHomeScore.setAttribute("aria-label", `Gols de ${match.home_team} no palpite`);
   predictionAwayScore.setAttribute("aria-label", `Gols de ${match.away_team} no palpite`);
+  predictionHomeTeamName.textContent = match.home_team;
+  predictionAwayTeamName.textContent = match.away_team;
   quickScores.classList.remove("hidden");
   predictionMessage.className = "hint";
   predictionMessage.textContent = "";
