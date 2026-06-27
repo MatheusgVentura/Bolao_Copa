@@ -49,6 +49,7 @@
             <small>premio total</small>
           </div>
         </div>
+
       </section>
 
       <div class="top-bar">
@@ -56,20 +57,34 @@
           Conectando ao Supabase...
         </p>
         <div class="admin-login">
-          <button class="secondary" id="themeToggleButton" type="button" aria-pressed="false">Modo escuro</button>
           <button class="secondary hidden" id="installAppButton" type="button">Instalar app</button>
-          <button class="secondary" id="adminLoginButton" type="button">Entrar como admin</button>
-          <button class="secondary hidden" id="adminLogoutButton" type="button">Sair do admin</button>
+          <button class="theme-icon-btn" id="themeToggleButton" type="button" aria-pressed="false" aria-label="Ativar modo escuro">
+            <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+          </button>
+          <button class="top-bar-link" id="adminLoginButton" type="button">Entrar como admin</button>
+          <button class="top-bar-link hidden" id="adminLogoutButton" type="button">Sair do admin</button>
         </div>
       </div>
 
       <nav class="quick-nav" aria-label="Atalhos da pagina">
-        <a class="quick-nav-primary" href="#predictionForm">Fazer palpite</a>
-        <a href="#ranking-title">Ver ranking</a>
-        <a href="#matches-title">Ver jogos</a>
-        <a href="#highlights-title">Ver destaques</a>
+        <a id="verChaveLink" class="hidden" href="#" data-tab="chave">Ver chave</a>
+        <a href="#" data-tab="palpite" class="quick-nav-primary">Fazer palpite</a>
+        <a href="#" data-tab="ranking">Ver ranking</a>
+        <a href="#" data-tab="destaques">Ver destaques</a>
         <span>Palpites fecham 1 minuto antes de cada jogo.</span>
       </nav>
+
+      <section class="panel bracket-section" id="bracketSection" hidden aria-labelledby="bracket-title">
+        <div class="table-header">
+          <div>
+            <h2 id="bracket-title">Chave do Mata-Mata</h2>
+            <p>Copa do Mundo 2026. Clique em um jogo para fazer seu palpite.</p>
+          </div>
+        </div>
+        <div class="bracket-scroll">
+          <div class="bracket-tree" id="bracketTree"></div>
+        </div>
+      </section>
 
       <div class="next-match-banner hidden" id="nextMatchBanner" aria-label="Proximo jogo">
         <div class="next-match-info">
@@ -89,27 +104,8 @@
         <a class="next-match-cta" href="#predictionForm">Palpitar</a>
       </div>
 
-      <section class="grid" aria-label="Comece por aqui">
-        <form class="panel form-panel participant-only" id="participantForm">
-          <p class="step-label"><span>1</span> Primeiro acesso</p>
-          <h2>Entre no bolao</h2>
-          <p class="form-intro">Cadastre seu nome uma vez. Depois, ele fica disponivel na lista de participantes.</p>
-          <label for="participantName">Nome</label>
-          <input id="participantName" name="participant_name" type="text" maxlength="40" autocomplete="name" placeholder="Ex.: Matheus…" required>
-
-          <label class="checkbox">
-            <input id="participantPaid" type="checkbox" required>
-            <span>Ja pagou os R$100</span>
-          </label>
-
-          <button class="primary" type="submit">Adicionar participante</button>
-          <p class="hint" id="participantMessage" role="status" aria-live="polite"></p>
-          <div class="flow-help" aria-label="Como participar">
-            <strong>Depois do cadastro</strong>
-            <span>Escolha seu nome no passo 2, selecione o jogo e informe o placar.</span>
-          </div>
-        </form>
-
+      <!-- Admin forms: shown on palpite tab when admin is logged in -->
+      <section class="grid" aria-label="Formularios do admin">
         <form class="panel form-panel admin-only admin-card" id="matchForm">
           <h2>Jogos</h2>
           <button class="secondary block" id="importMatchesButton" type="button">
@@ -141,8 +137,31 @@
           <p class="hint" id="matchMessage" role="status" aria-live="polite"></p>
         </form>
 
+        <form class="panel form-panel admin-only admin-card" id="resultForm">
+          <h2>Resultado oficial</h2>
+          <label for="resultStageSelect">Dia</label>
+          <select id="resultStageSelect"></select>
+
+          <label for="resultMatchSelect">Jogo</label>
+          <select id="resultMatchSelect" required></select>
+
+          <div class="score-row" role="group" aria-labelledby="resultScoreLabel">
+            <span class="visually-hidden" id="resultScoreLabel">Placar oficial</span>
+            <input id="resultHomeScore" type="number" min="0" max="30" required aria-label="Gols oficiais da selecao A">
+            <span>x</span>
+            <input id="resultAwayScore" type="number" min="0" max="30" required aria-label="Gols oficiais da selecao B">
+          </div>
+
+          <button class="primary" type="submit">Salvar resultado</button>
+          <button class="secondary block" id="clearResultButton" type="button">Remover resultado</button>
+          <p class="hint" id="resultMessage" role="status" aria-live="polite"></p>
+        </form>
+      </section>
+
+      <!-- Palpite layout: form (left) + day matches panel (right) -->
+      <div class="palpite-layout" id="palpiteWrapper">
         <form class="panel form-panel participant-only" id="predictionForm">
-          <p class="step-label"><span>2</span> Seu palpite</p>
+          <p class="step-label">Fazer palpite</p>
           <h2>Escolha um jogo</h2>
           <p class="form-intro">Seu nome fica lembrado neste aparelho para os proximos palpites.</p>
           <label for="participantSelect">Participante</label>
@@ -192,34 +211,24 @@
           <p class="hint" id="predictionMessage" role="status" aria-live="polite"></p>
         </form>
 
-        <form class="panel form-panel admin-only admin-card" id="resultForm">
-          <h2>Resultado oficial</h2>
-          <label for="resultStageSelect">Dia</label>
-          <select id="resultStageSelect"></select>
-
-          <label for="resultMatchSelect">Jogo</label>
-          <select id="resultMatchSelect" required></select>
-
-          <div class="score-row" role="group" aria-labelledby="resultScoreLabel">
-            <span class="visually-hidden" id="resultScoreLabel">Placar oficial</span>
-            <input id="resultHomeScore" type="number" min="0" max="30" required aria-label="Gols oficiais da selecao A">
-            <span>x</span>
-            <input id="resultAwayScore" type="number" min="0" max="30" required aria-label="Gols oficiais da selecao B">
+        <section class="panel table-panel" id="dayMatchesPanel" aria-label="Jogos do dia">
+          <div class="table-header">
+            <div><h2>Jogos do dia</h2></div>
           </div>
-
-          <button class="primary" type="submit">Salvar resultado</button>
-          <button class="secondary block" id="clearResultButton" type="button">Remover resultado</button>
-          <p class="hint" id="resultMessage" role="status" aria-live="polite"></p>
-        </form>
-
-      </section>
+          <div id="dayMatchesList"></div>
+          <p class="hint" id="dayMatchesEmpty">Selecione um dia para ver os jogos.</p>
+        </section>
+      </div>
 
       <section class="layout-wide">
         <section class="panel table-panel" aria-labelledby="ranking-title">
           <div class="table-header">
             <div>
               <h2 id="ranking-title">Ranking</h2>
-              <p>1 ponto pelo resultado final, 3 pelo placar exato, 5 pelo artilheiro, 3 por finalista e 5 pelo campeao da final.</p>
+              <details class="ranking-rules">
+                <summary>Regras de pontuação</summary>
+                <p>1 ponto pelo resultado final, 3 pelo placar exato, 5 pelo artilheiro, 3 por finalista e 5 pelo campeao da final.</p>
+              </details>
             </div>
           </div>
           <div class="ranking-list" id="rankingTable"></div>

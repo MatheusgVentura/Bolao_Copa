@@ -1,4 +1,42 @@
 const ENTRY_VALUE = 100;
+
+// Tab management
+let currentTab = "palpite";
+const TAB_SECTIONS = {
+  palpite:   ["#palpiteWrapper"],
+  ranking:   [".layout-wide"],
+  chave:     ["#bracketSection"],
+  destaques: ["#highlightsPanel", "#publicBonusPanel"],
+};
+
+function showTab(tabId) {
+  if (!TAB_SECTIONS[tabId]) return;
+  currentTab = tabId;
+
+  // Body class drives .grid (admin forms) visibility via CSS — no hidden attribute needed
+  document.body.classList.toggle("tab-palpite", tabId === "palpite");
+
+  // Hide all tab-controlled sections (bracket handled separately in renderBracket)
+  ["#palpiteWrapper", ".layout-wide", "#highlightsPanel", "#publicBonusPanel"].forEach((sel) => {
+    const el = document.querySelector(sel);
+    if (el) el.hidden = true;
+  });
+  document.querySelector("#bracketSection")?.setAttribute("hidden", "");
+
+  // Show sections for active tab
+  TAB_SECTIONS[tabId].forEach((sel) => {
+    const el = document.querySelector(sel);
+    if (el) el.hidden = false;
+  });
+
+  // Re-run renderBracket so it can decide visibility based on currentTab
+  if (tabId === "chave") renderBracket();
+
+  // Update nav highlight
+  document.querySelectorAll(".quick-nav a[data-tab]").forEach((a) => {
+    a.classList.toggle("quick-nav-primary", a.dataset.tab === tabId);
+  });
+}
 const PREDICTION_DEADLINE_MS = 1 * 60 * 1000;
 const AUTO_RESULTS_REFRESH_MS = 5 * 60 * 1000;
 const SPECIAL_BONUS_DEADLINE = new Date("2026-06-10T23:59:59-03:00");
@@ -99,6 +137,49 @@ let hasLoadedMatchesOnce = false;
 let deferredInstallPrompt = null;
 const NOTIFIED_MATCHES_KEY = "bolao-notified-matches";
 const TOAST_DURATION_MS = 8000;
+
+// Bracket structure for the 2026 World Cup knockout stage.
+// source_ids match the official match numbers (J74, J75, ...).
+// Groups define which pairs of matches feed into the next round.
+const BRACKET_COLS = [
+  {
+    id: "r32-left", label: "Segundas de final", flipped: false, outermost: true,
+    groups: [["J74", "J77"], ["J73", "J75"], ["J83", "J84"], ["J81", "J82"]],
+  },
+  {
+    id: "r16-left", label: "Oitavas de final", flipped: false,
+    groups: [["J89", "J90"], ["J93", "J94"]],
+  },
+  {
+    id: "qf-left", label: "Quartas de final", flipped: false,
+    groups: [["J97", "J98"]],
+  },
+  {
+    id: "sf-left", label: "Semifinal", flipped: false,
+    groups: [["J101"]],
+  },
+  {
+    id: "final", label: "Final", isCenter: true,
+    groups: [["J104"]],
+  },
+  {
+    id: "sf-right", label: "Semifinal", flipped: true,
+    groups: [["J102"]],
+  },
+  {
+    id: "qf-right", label: "Quartas de final", flipped: true,
+    groups: [["J99", "J100"]],
+  },
+  {
+    id: "r16-right", label: "Oitavas de final", flipped: true,
+    groups: [["J91", "J92"], ["J95", "J96"]],
+  },
+  {
+    id: "r32-right", label: "Segundas de final", flipped: true, outermost: true,
+    groups: [["J76", "J78"], ["J79", "J80"], ["J86", "J88"], ["J85", "J87"]],
+  },
+];
+const BRACKET_THIRD_PLACE = "J103";
 
 function money(value) {
   return value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
@@ -679,6 +760,52 @@ function hasOfficialResult(match) {
   return match?.home_score !== null && match?.away_score !== null;
 }
 
+function deduplicateMatchData(rawMatches, rawPredictions) {
+  const groups = new Map();
+  for (const match of rawMatches) {
+    const key = [
+      normalizeText(match.home_team || ""),
+      normalizeText(match.away_team || ""),
+      match.kickoff_at || match.id
+    ].join("|");
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key).push(match);
+  }
+
+  const keptMatches = [];
+  const idRemap = new Map();
+
+  for (const group of groups.values()) {
+    if (group.length === 1) { keptMatches.push(group[0]); continue; }
+
+    // Keep the record with the shortest source_id (numeric beats fallback),
+    // tiebreak by preferring the one that has an official result.
+    const primary = [...group].sort((a, b) => {
+      const lenDiff = (a.source_id || "").length - (b.source_id || "").length;
+      if (lenDiff !== 0) return lenDiff;
+      return (hasOfficialResult(b) ? 1 : 0) - (hasOfficialResult(a) ? 1 : 0);
+    })[0];
+
+    keptMatches.push(primary);
+    for (const dup of group) {
+      if (dup.id !== primary.id) idRemap.set(dup.id, primary.id);
+    }
+  }
+
+  // Remap predictions that point to removed duplicates, then deduplicate them.
+  const predSeen = new Set();
+  const keptPredictions = rawPredictions
+    .map((p) => idRemap.has(p.match_id) ? { ...p, match_id: idRemap.get(p.match_id) } : p)
+    .filter((p) => {
+      const key = `${p.participant_id}|${p.match_id}`;
+      if (predSeen.has(key)) return false;
+      predSeen.add(key);
+      return true;
+    });
+
+  return { matches: keptMatches, predictions: keptPredictions };
+}
+
 function getNotifiedMatchIds() {
   try {
     return new Set(JSON.parse(localStorage.getItem(NOTIFIED_MATCHES_KEY) || "[]"));
@@ -991,6 +1118,68 @@ function updatePredictionContext() {
   predictionDeadlineIntervalId = window.setInterval(tickDeadline, 1000);
 }
 
+function renderDayMatchesPreview() {
+  const list = document.querySelector("#dayMatchesList");
+  const empty = document.querySelector("#dayMatchesEmpty");
+  if (!list) return;
+
+  const dayKey = predictionStageSelect?.value;
+  const dayMatches = dayKey ? matches.filter((m) => matchDayKey(m) === dayKey) : [];
+
+  if (!dayMatches.length) {
+    list.innerHTML = "";
+    if (empty) {
+      empty.textContent = dayKey ? "Nenhum jogo neste dia." : "Selecione um dia para ver os jogos.";
+      empty.hidden = false;
+    }
+    return;
+  }
+
+  if (empty) empty.hidden = true;
+
+  const selectedMatchId = matchSelect?.value;
+
+  list.innerHTML = dayMatches.map((match) => {
+    const isSelected = match.id === selectedMatchId;
+    const finished = hasOfficialResult(match);
+    const live = !finished && hasMatchStarted(match);
+    const canPredict = canPredictMatch(match);
+
+    const time = match.kickoff_at
+      ? new Date(match.kickoff_at).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit", timeZone: "America/Sao_Paulo" })
+      : "";
+
+    const statusClass = finished ? "finished" : live ? "live" : "open";
+    const statusLabel = finished ? "Final" : live ? "Em andamento" : "Aberto";
+    const resultText = finished ? `${match.home_score} × ${match.away_score}` : live ? "· · ·" : "–";
+    const meta = [time, match.stage, match.venue].filter(Boolean).join(" · ");
+
+    return `<button type="button" class="match-card dmp-match-btn${isSelected ? " dmp-selected" : ""}" data-dmp-match="${match.id}">
+      <div class="match-top">
+        <div>
+          <strong>${escapeHtml(match.home_team)} × ${escapeHtml(match.away_team)}</strong>
+          <span>${escapeHtml(meta)}</span>
+        </div>
+        <div class="match-result ${statusClass}">
+          <small>${statusLabel}</small>
+          <strong>${resultText}</strong>
+        </div>
+      </div>
+    </button>`;
+  }).join("");
+
+  list.querySelectorAll("[data-dmp-match]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const matchId = btn.dataset.dmpMatch;
+      const matchObj = matches.find((m) => m.id === matchId);
+      if (!canPredictMatch(matchObj)) return;
+      matchSelect.value = matchId;
+      updatePredictionContext();
+      renderDayMatchesPreview();
+    });
+  });
+}
+
 function renderRanking() {
   rankingTable.innerHTML = "";
 
@@ -1163,10 +1352,11 @@ function finalistPicksText(participant) {
 }
 
 function renderPublicBonusPanel() {
-  publicBonusTable.innerHTML = "";
-  publicBonusPanel.hidden = !canShowSpecialBonusPicks();
+  const canShow = canShowSpecialBonusPicks();
+  publicBonusPanel.hidden = !canShow || currentTab !== "destaques";
 
-  if (publicBonusPanel.hidden) return;
+  publicBonusTable.innerHTML = "";
+  if (!canShow) return;
 
   const participantsWithBonus = participantsWithSpecialBonus();
 
@@ -1184,6 +1374,216 @@ function renderPublicBonusPanel() {
   });
 
   publicBonusEmpty.style.display = participantsWithBonus.length ? "none" : "block";
+}
+
+function findBracketMatch(sourceId) {
+  let m = matches.find((match) => match.source_id === sourceId);
+  if (m) return m;
+  if (sourceId.startsWith("J")) {
+    m = matches.find((match) => match.source_id === sourceId.slice(1));
+    if (m) return m;
+  }
+  return matches.find((match) => match.source_id === "J" + sourceId) || null;
+}
+
+function createBracketCard(match, sourceId) {
+  if (!match) {
+    const card = document.createElement("div");
+    card.className = "bracket-card bracket-card--tbd";
+    const placeholder = document.createElement("span");
+    placeholder.className = "bc-placeholder";
+    placeholder.textContent = sourceId;
+    card.appendChild(placeholder);
+    return card;
+  }
+
+  const hasResult = hasOfficialResult(match);
+  const canPredict = canPredictMatch(match);
+  const myPrediction = predictions.find(
+    (p) => p.match_id === match.id && p.participant_id === preferredParticipantId
+  );
+  const homeWon = hasResult && match.home_score > match.away_score;
+  const awayWon = hasResult && match.away_score > match.home_score;
+
+  const card = document.createElement("button");
+  card.type = "button";
+  card.className = [
+    "bracket-card",
+    hasResult ? "bracket-card--finished" : "",
+    canPredict ? "bracket-card--open" : "",
+    myPrediction ? "bracket-card--predicted" : "",
+  ].filter(Boolean).join(" ");
+  card.dataset.bracketMatch = match.id;
+  card.setAttribute("aria-label", `${match.home_team} x ${match.away_team}. Clique para palpitar.`);
+
+  const dateStr = formatMatchDate(match.kickoff_at);
+
+  const homeTeamEl = document.createElement("span");
+  homeTeamEl.className = `bc-team${homeWon ? " bc-team--winner" : ""}`;
+  homeTeamEl.innerHTML = `<span class="bc-name">${escapeHtml(match.home_team)}</span>${hasResult ? `<span class="bc-score">${match.home_score}</span>` : ""}`;
+
+  const awayTeamEl = document.createElement("span");
+  awayTeamEl.className = `bc-team${awayWon ? " bc-team--winner" : ""}`;
+  awayTeamEl.innerHTML = `<span class="bc-name">${escapeHtml(match.away_team)}</span>${hasResult ? `<span class="bc-score">${match.away_score}</span>` : ""}`;
+
+  if (dateStr) {
+    const dateEl = document.createElement("span");
+    dateEl.className = "bc-date";
+    dateEl.textContent = dateStr;
+    card.appendChild(dateEl);
+  }
+  card.appendChild(homeTeamEl);
+  card.appendChild(awayTeamEl);
+
+  if (myPrediction) {
+    const predEl = document.createElement("span");
+    predEl.className = "bc-my-pred";
+    predEl.textContent = `Meu: ${myPrediction.home_score}–${myPrediction.away_score}`;
+    card.appendChild(predEl);
+  } else if (canPredict) {
+    const ctaEl = document.createElement("span");
+    ctaEl.className = "bc-badge";
+    ctaEl.textContent = "Palpitar ›";
+    card.appendChild(ctaEl);
+  }
+
+  return card;
+}
+
+function getBracketPodiumData() {
+  const finalMatch = findBracketMatch("J104");
+  const thirdMatch = findBracketMatch("J103");
+  let first = null, second = null, third = null;
+
+  if (finalMatch && hasOfficialResult(finalMatch)) {
+    if (finalMatch.home_score > finalMatch.away_score) {
+      first = finalMatch.home_team;
+      second = finalMatch.away_team;
+    } else if (finalMatch.away_score > finalMatch.home_score) {
+      first = finalMatch.away_team;
+      second = finalMatch.home_team;
+    }
+  }
+
+  if (specialResults?.champion) first = specialResults.champion;
+
+  if (first && !second && finalMatch) {
+    if (sameText(first, finalMatch.home_team)) second = finalMatch.away_team;
+    else if (sameText(first, finalMatch.away_team)) second = finalMatch.home_team;
+  }
+
+  if (thirdMatch && hasOfficialResult(thirdMatch)) {
+    if (thirdMatch.home_score > thirdMatch.away_score) third = thirdMatch.home_team;
+    else if (thirdMatch.away_score > thirdMatch.home_score) third = thirdMatch.away_team;
+  }
+
+  return { first, second, third };
+}
+
+function renderBracketPodium() {
+  const { first, second, third } = getBracketPodiumData();
+  const el = document.createElement("div");
+  el.className = "bracket-final-podium";
+
+  const title = document.createElement("div");
+  title.className = "fp-title";
+  title.textContent = "Classificação";
+  el.appendChild(title);
+
+  [
+    { medal: "🥇", team: first },
+    { medal: "🥈", team: second },
+    { medal: "🥉", team: third },
+  ].forEach(({ medal, team }) => {
+    const place = document.createElement("div");
+    place.className = "fp-place";
+    const medalEl = document.createElement("span");
+    medalEl.className = "fp-medal";
+    medalEl.textContent = medal;
+    const teamEl = document.createElement("span");
+    teamEl.className = `fp-team${team ? "" : " fp-team--pending"}`;
+    teamEl.textContent = team || "Aguardando";
+    place.appendChild(medalEl);
+    place.appendChild(teamEl);
+    el.appendChild(place);
+  });
+
+  return el;
+}
+
+function renderBracketThirdInline() {
+  const thirdMatch = findBracketMatch(BRACKET_THIRD_PLACE);
+  const el = document.createElement("div");
+  el.className = "bracket-final-third";
+
+  const label = document.createElement("span");
+  label.className = "bracket-final-third-label";
+  label.textContent = "3° Lugar";
+  el.appendChild(label);
+
+  el.appendChild(createBracketCard(thirdMatch, BRACKET_THIRD_PLACE));
+  return el;
+}
+
+function renderBracket() {
+  const bracketSection = document.querySelector("#bracketSection");
+  const bracketTree = document.querySelector("#bracketTree");
+  const verChaveLink = document.querySelector("#verChaveLink");
+  if (!bracketTree) return;
+
+  const allSourceIds = BRACKET_COLS.flatMap((col) => col.groups.flat()).concat([BRACKET_THIRD_PLACE]);
+  const hasAnyBracketMatch = allSourceIds.some((sid) => Boolean(findBracketMatch(sid)));
+
+  if (bracketSection) bracketSection.hidden = !(currentTab === "chave" && hasAnyBracketMatch);
+  if (verChaveLink) verChaveLink.classList.toggle("hidden", !hasAnyBracketMatch);
+
+  bracketTree.innerHTML = "";
+
+  BRACKET_COLS.forEach((col) => {
+    const colEl = document.createElement("div");
+    colEl.className = [
+      "bracket-col",
+      col.flipped ? "bracket-col--flipped" : "",
+      col.isCenter ? "bracket-col--final" : "",
+    ].filter(Boolean).join(" ");
+    colEl.dataset.round = col.id;
+
+    const labelEl = document.createElement("div");
+    labelEl.className = "bracket-col-label";
+    labelEl.textContent = col.label;
+    colEl.appendChild(labelEl);
+
+    const slotsEl = document.createElement("div");
+    slotsEl.className = "bracket-slots";
+
+    col.groups.forEach((sourceIds) => {
+      const isSingle = sourceIds.length === 1;
+      const groupEl = document.createElement("div");
+      groupEl.className = isSingle ? "bracket-group bracket-group--single" : "bracket-group";
+
+      sourceIds.forEach((sourceId) => {
+        const match = findBracketMatch(sourceId);
+        const slotEl = document.createElement("div");
+        slotEl.className = "bracket-slot";
+        slotEl.appendChild(createBracketCard(match, sourceId));
+        groupEl.appendChild(slotEl);
+      });
+
+      slotsEl.appendChild(groupEl);
+    });
+
+    colEl.appendChild(slotsEl);
+
+    if (col.isCenter) {
+      const extrasEl = document.createElement("div");
+      extrasEl.className = "bracket-final-extras";
+      extrasEl.appendChild(renderBracketPodium());
+      extrasEl.appendChild(renderBracketThirdInline());
+      colEl.appendChild(extrasEl);
+    }
+
+    bracketTree.appendChild(colEl);
+  });
 }
 
 function renderAdminPanel() {
@@ -1389,8 +1789,10 @@ function render() {
   totalMatches.textContent = matches.length;
   totalPrize.textContent = money(paidCount * ENTRY_VALUE);
   renderSelects();
+  renderDayMatchesPreview();
   renderRanking();
   renderMatches();
+  renderBracket();
   renderHighlights();
   renderDailyDuel();
   renderPublicBonusPanel();
@@ -1435,9 +1837,14 @@ async function loadAll() {
   const previousMatches = matches;
 
   participants = participantsResult.data || [];
-  matches = matchesResult.data || [];
-  predictions = predictionsResult.data || [];
   predictionLogs = logsResult.error ? [] : logsResult.data || [];
+
+  const deduped = deduplicateMatchData(
+    matchesResult.data || [],
+    predictionsResult.data || []
+  );
+  matches = deduped.matches;
+  predictions = deduped.predictions;
 
   if (hasLoadedMatchesOnce) notifyNewlyFinishedMatches(previousMatches, matches);
   hasLoadedMatchesOnce = true;
@@ -1492,6 +1899,7 @@ function normalizeOfficialMatches(payload) {
       const normalizedKickoff = parsedKickoff ? new Date(parsedKickoff).toISOString() : null;
       const sourceId = String(
         item.source_id ||
+          item.num ||
           item.id ||
           item.fixture?.id ||
           `${homeTeam}-${awayTeam}-${normalizedKickoff || index}`
@@ -1592,6 +2000,31 @@ async function importOfficialMatches() {
       return;
     }
 
+    // Migrate existing records that were saved with the old fallback source_id
+    // (team-name based) to the correct numeric source_id from the JSON.
+    const migrations = officialMatches
+      .map((om) => {
+        const existing = matches.find(
+          (m) =>
+            m.source_id !== om.source_id &&
+            sameText(m.home_team, om.home_team) &&
+            sameText(m.away_team, om.away_team) &&
+            m.kickoff_at &&
+            om.kickoff_at &&
+            new Date(m.kickoff_at).getTime() === new Date(om.kickoff_at).getTime()
+        );
+        return existing ? { id: existing.id, source_id: om.source_id } : null;
+      })
+      .filter(Boolean);
+
+    if (migrations.length) {
+      await Promise.all(
+        migrations.map(({ id, source_id }) =>
+          supabaseClient.from("matches").update({ source_id }).eq("id", id).throwOnError()
+        )
+      );
+    }
+
     await supabaseClient
       .from("matches")
       .upsert(officialMatches, { onConflict: "source_id" })
@@ -1611,7 +2044,7 @@ function numberValue(selector) {
   return Number(document.querySelector(selector).value);
 }
 
-participantForm.addEventListener("submit", async (event) => {
+participantForm?.addEventListener("submit", async (event) => {
   event.preventDefault();
   const message = document.querySelector("#participantMessage");
   const name = document.querySelector("#participantName").value.trim();
@@ -1641,7 +2074,7 @@ participantForm.addEventListener("submit", async (event) => {
       .throwOnError();
     preferredParticipantId = createdParticipant.id;
     localStorage.setItem("bolao-participant-id", preferredParticipantId);
-    participantForm.reset();
+    participantForm?.reset();
     message.textContent = "Participante adicionado. Agora escolha o jogo e salve seu palpite.";
     await loadAll();
     predictionForm.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -2092,6 +2525,7 @@ importMatchesButton.addEventListener("click", importOfficialMatches);
 predictionStageSelect.addEventListener("change", () => {
   matchSelect.value = "";
   renderSelects();
+  renderDayMatchesPreview();
 });
 
 resultStageSelect.addEventListener("change", () => {
@@ -2115,9 +2549,13 @@ participantSelect.addEventListener("change", () => {
   }
   renderRanking();
   renderSelects();
+  renderDayMatchesPreview();
 });
 
-matchSelect.addEventListener("change", updatePredictionContext);
+matchSelect.addEventListener("change", () => {
+  updatePredictionContext();
+  renderDayMatchesPreview();
+});
 
 document.querySelector("#quickScores").addEventListener("click", (event) => {
   const btn = event.target.closest(".quick-score-btn");
@@ -2354,11 +2792,15 @@ installAppButton.addEventListener("click", async () => {
   }
 });
 
+const ICON_MOON = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>`;
+const ICON_SUN  = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>`;
+
 function applyTheme(theme) {
   document.documentElement.setAttribute("data-theme", theme);
   localStorage.setItem("bolao-theme", theme);
-  themeToggleButton.textContent = theme === "dark" ? "Modo claro" : "Modo escuro";
+  themeToggleButton.innerHTML = theme === "dark" ? ICON_SUN : ICON_MOON;
   themeToggleButton.setAttribute("aria-pressed", theme === "dark" ? "true" : "false");
+  themeToggleButton.setAttribute("aria-label", theme === "dark" ? "Ativar modo claro" : "Ativar modo escuro");
 }
 
 themeToggleButton.addEventListener("click", () => {
@@ -2377,4 +2819,42 @@ if ("serviceWorker" in navigator) {
 }
 
 updateInstallButtonVisibility();
+
+// Tab nav: click switches content sections
+document.querySelectorAll(".quick-nav a[data-tab]").forEach((link) => {
+  link.addEventListener("click", (e) => {
+    e.preventDefault();
+    showTab(link.dataset.tab);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  });
+});
+
+// Any link pointing to the prediction form navigates to the palpite tab
+document.addEventListener("click", (e) => {
+  const anchor = e.target.closest('a[href="#predictionForm"], .next-match-cta');
+  if (!anchor) return;
+  e.preventDefault();
+  showTab("palpite");
+  document.querySelector("#predictionForm")?.scrollIntoView({ behavior: "smooth", block: "start" });
+});
+
+document.querySelector("#bracketTree")?.addEventListener("click", (event) => {
+  const card = event.target.closest("[data-bracket-match]");
+  if (!card) return;
+
+  const matchId = card.dataset.bracketMatch;
+  const match = matches.find((m) => m.id === matchId);
+  if (!match) return;
+
+  showTab("palpite");
+  predictionStageSelect.value = matchDayKey(match);
+  renderSelects();
+  matchSelect.value = matchId;
+  updatePredictionContext();
+  renderDayMatchesPreview();
+
+  document.querySelector("#predictionForm")?.scrollIntoView({ behavior: "smooth", block: "start" });
+});
+
+showTab("palpite");
 start();
