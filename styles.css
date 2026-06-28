@@ -1038,6 +1038,151 @@ h3 {
   min-height: auto;
 }
 
+/* Status inline na tabela de classificacao admin */
+.passage-status {
+  font-size: 0.8rem;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 4px;
+}
+
+.passage-status.hit {
+  background: var(--success-soft);
+  color: var(--success-text);
+}
+
+.passage-status.miss {
+  background: var(--danger-soft);
+  color: var(--danger);
+}
+
+/* Bloco de classificacao mata-mata nos cards de jogo */
+.passage-mini-block {
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px dashed var(--line);
+}
+
+.passage-mini-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+  font-size: 0.74rem;
+  font-weight: 700;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.passage-winner {
+  font-size: 0.8rem;
+  font-weight: 900;
+  color: var(--primary-dark);
+  background: var(--primary-soft);
+  border: 1px solid rgba(8, 115, 78, 0.2);
+  border-radius: 4px;
+  padding: 2px 8px;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.passage-winner-pending {
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--muted);
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+/* Sub-tabs de tipo de palpite */
+.pred-tabs {
+  display: flex;
+  gap: 4px;
+  margin: 14px 0 18px;
+  border-bottom: 2px solid var(--line);
+  padding-bottom: 0;
+}
+
+.pred-tab {
+  flex: 1;
+  padding: 8px 12px;
+  border: none;
+  border-bottom: 3px solid transparent;
+  margin-bottom: -2px;
+  background: transparent;
+  color: var(--muted);
+  font-size: 0.85rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+  transition: color 0.15s, border-color 0.15s;
+  border-radius: 0;
+}
+
+.pred-tab:hover {
+  color: var(--primary);
+}
+
+.pred-tab[aria-selected="true"] {
+  color: var(--primary);
+  border-bottom-color: var(--primary);
+}
+
+/* Palpite de classificacao */
+.passage-pick {
+  margin: 14px 0;
+}
+
+.passage-pick-label {
+  margin: 0 0 10px;
+  font-size: 0.82rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.passage-pick-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.passage-pick-btn {
+  min-height: 52px;
+  padding: 10px 8px;
+  background: var(--panel-soft);
+  border: 2px solid var(--line);
+  border-radius: var(--radius);
+  color: var(--text);
+  font-size: 0.9rem;
+  font-weight: 800;
+  text-align: center;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s, color 0.15s, box-shadow 0.15s;
+  line-height: 1.3;
+  word-break: break-word;
+}
+
+.passage-pick-btn:hover:not(:disabled) {
+  background: var(--primary-soft);
+  border-color: rgba(8, 115, 78, 0.35);
+  color: var(--primary-dark);
+}
+
+.passage-pick-btn.selected {
+  background: var(--primary);
+  border-color: var(--primary);
+  color: #fff;
+  box-shadow: 0 4px 12px rgba(8, 115, 78, 0.28);
+}
+
+.passage-pick-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
 label {
   display: block;
   margin-bottom: 8px;
@@ -2986,4 +3131,45 @@ button.bracket-card:focus-visible {
 [data-theme="dark"] .match-result.finished strong,
 [data-theme="dark"] .hint {
   color: #6fe3ad;
+}
+
+[data-theme="dark"] .passage-mini-block {
+  border-top-color: #2a3f39;
+}
+
+[data-theme="dark"] .passage-winner {
+  color: #6fe3ad;
+  background: rgba(111, 227, 173, 0.12);
+  border-color: rgba(111, 227, 173, 0.2);
+}
+
+[data-theme="dark"] .pred-tab {
+  color: #8ba89d;
+}
+
+[data-theme="dark"] .pred-tab:hover,
+[data-theme="dark"] .pred-tab[aria-selected="true"] {
+  color: #6fe3ad;
+}
+
+[data-theme="dark"] .pred-tab[aria-selected="true"] {
+  border-bottom-color: #6fe3ad;
+}
+
+[data-theme="dark"] .passage-pick-btn {
+  background: #1a2c27;
+  border-color: #2a3f39;
+  color: #d0e8df;
+}
+
+[data-theme="dark"] .passage-pick-btn:hover:not(:disabled) {
+  background: #1e3a30;
+  border-color: rgba(111, 227, 173, 0.35);
+  color: #6fe3ad;
+}
+
+[data-theme="dark"] .passage-pick-btn.selected {
+  background: var(--primary);
+  border-color: var(--primary);
+  color: #fff;
 }

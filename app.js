@@ -110,6 +110,17 @@ const loadingBar = document.querySelector("#loadingBar");
 const toastContainer = document.querySelector("#toastContainer");
 const installAppButton = document.querySelector("#installAppButton");
 const themeToggleButton = document.querySelector("#themeToggleButton");
+const adminPassageDaySelect = document.querySelector("#adminPassageDaySelect");
+const adminPassageMatchSelect = document.querySelector("#adminPassageMatchSelect");
+const adminPassageTable = document.querySelector("#adminPassageTable");
+const adminPassageEmpty = document.querySelector("#adminPassageEmpty");
+const passageStageSelect = document.querySelector("#passageStageSelect");
+const passageMatchSelect = document.querySelector("#passageMatchSelect");
+const passagePickHome = document.querySelector("#passagePickHome");
+const passagePickAway = document.querySelector("#passagePickAway");
+const passagePickSection = document.querySelector("#passagePickSection");
+const passageMatchSummary = document.querySelector("#passageMatchSummary");
+const passageDeadlineBadge = document.querySelector("#passageDeadlineBadge");
 
 let supabaseClient = null;
 let appConfig = null;
@@ -117,6 +128,10 @@ let participants = [];
 let matches = [];
 let predictions = [];
 let predictionLogs = [];
+let passagePredictions = [];
+let selectedPassageDay = "";
+let selectedPassageMatch = "";
+let activePredTab = "placar";
 let specialResults = null;
 let selectedDay = "all";
 let teamSearchQuery = "";
@@ -126,6 +141,8 @@ let selectedAdminPredictDay = "all";
 let selectedAdminPredictMatch = "";
 let selectedLogDay = "";
 let selectedLogMatch = "all";
+let selectedAdminPassageDay = "";
+let selectedAdminPassageMatch = "";
 let isAdmin = sessionStorage.getItem("bolao-admin") === "true";
 let activeAdminTab = sessionStorage.getItem("bolao-admin-tab") || "review";
 let nextKickoffTimer = null;
@@ -370,6 +387,16 @@ function specialBonusFor(participant) {
   return finalistPoints + championPoints + topScorerPoints;
 }
 
+function passagePointsFor(participant) {
+  return passagePredictions
+    .filter((pp) => pp.participant_id === participant.id)
+    .reduce((total, pp) => {
+      const match = matches.find((m) => m.id === pp.match_id);
+      if (!match?.knockout_winner) return total;
+      return total + (sameText(pp.pick, match.knockout_winner) ? 1 : 0);
+    }, 0);
+}
+
 function hasSpecialBonusPicks(participant) {
   return [
     participant?.champion_pick,
@@ -592,14 +619,16 @@ function fillSpecialResultForm() {
 
 function participantScore(participant) {
   const matchPoints = matchPointsForParticipant(participant);
+  const passagePoints = passagePointsFor(participant);
   const bonusPoints = specialBonusFor(participant);
   const manualPoints = Number(participant.manual_bonus_points) || 0;
 
   return {
     matchPoints,
+    passagePoints,
     bonusPoints,
     manualPoints,
-    total: matchPoints + bonusPoints + manualPoints
+    total: matchPoints + passagePoints + bonusPoints + manualPoints
   };
 }
 
@@ -890,6 +919,8 @@ function renderSelects() {
   const selectedAdminPredictDayValue = adminPredictStageSelect.value || selectedAdminPredictDay;
   const selectedAdminPredictMatchValue = adminPredictMatchSelect.value || selectedAdminPredictMatch;
   const selectedLogDayValue = predictionLogDaySelect.value || selectedLogDay;
+  const selectedAdminPassageDayValue = adminPassageDaySelect?.value || selectedAdminPassageDay;
+  const selectedAdminPassageMatchValue = adminPassageMatchSelect?.value || selectedAdminPassageMatch;
   const selectedLogMatchValue = predictionLogMatchSelect.value || selectedLogMatch;
 
   participantSelect.innerHTML = "";
@@ -992,6 +1023,31 @@ function renderSelects() {
     : "all";
   predictionLogMatchSelect.value = selectedLogMatch;
 
+  if (adminPassageDaySelect) {
+    const knockoutDays = [...new Set(matches.filter((m) => m.is_knockout).map(matchDayKey))].filter((d) => d !== "sem-data").sort();
+    adminPassageDaySelect.innerHTML = "";
+    if (!knockoutDays.length) {
+      adminPassageDaySelect.appendChild(option("Sem jogos mata-mata", ""));
+    } else {
+      knockoutDays.forEach((day) => adminPassageDaySelect.appendChild(option(dayLabel(day), day)));
+    }
+    const validPassageDay = knockoutDays.includes(selectedAdminPassageDayValue) ? selectedAdminPassageDayValue : (knockoutDays[0] || "");
+    adminPassageDaySelect.value = validPassageDay;
+    selectedAdminPassageDay = validPassageDay;
+
+    const passageDayMatches = matches.filter((m) => m.is_knockout && matchDayKey(m) === selectedAdminPassageDay);
+    adminPassageMatchSelect.innerHTML = "";
+    adminPassageMatchSelect.appendChild(option("Escolha o jogo", ""));
+    passageDayMatches.forEach((match) => {
+      const date = formatMatchDate(match.kickoff_at);
+      const label = `${match.home_team} x ${match.away_team}${date ? ` - ${date}` : ""}`;
+      adminPassageMatchSelect.appendChild(option(label, match.id));
+    });
+    const validPassageMatch = passageDayMatches.some((m) => m.id === selectedAdminPassageMatchValue) ? selectedAdminPassageMatchValue : "";
+    adminPassageMatchSelect.value = validPassageMatch;
+    selectedAdminPassageMatch = validPassageMatch;
+  }
+
   [
     { element: matchSelect, value: selectedMatch, day: predictionStageSelect.value },
     { element: resultMatchSelect, value: selectedResultMatch, day: resultStageSelect.value }
@@ -1015,6 +1071,144 @@ function renderSelects() {
   });
 
   updatePredictionContext();
+  updateKnockoutAdminFields();
+}
+
+function renderPassageSelects() {
+  if (!passageStageSelect || !passageMatchSelect) return;
+  const knockouts = matches.filter((m) => m.is_knockout);
+  const days = [...new Set(knockouts.map(matchDayKey))].filter((d) => d !== "sem-data").sort();
+
+  const savedDay = selectedPassageDay;
+  const savedMatch = selectedPassageMatch;
+
+  passageStageSelect.innerHTML = "";
+
+  if (!days.length) {
+    passageStageSelect.appendChild(option("Sem jogos mata-mata", ""));
+    passageMatchSelect.innerHTML = "";
+    passageMatchSelect.appendChild(option("Nenhum jogo disponivel", ""));
+    updatePassageContext();
+    return;
+  }
+
+  const todayKey = matchDayKey({ kickoff_at: new Date().toISOString() });
+  const defaultDay = days.includes(todayKey) ? todayKey : (days.find((d) => d >= todayKey) || days[days.length - 1]);
+
+  days.forEach((day) => passageStageSelect.appendChild(option(dayLabel(day), day)));
+
+  const validDay = days.includes(savedDay) ? savedDay : defaultDay;
+  passageStageSelect.value = validDay;
+  selectedPassageDay = validDay;
+
+  const dayKnockouts = knockouts.filter((m) => matchDayKey(m) === selectedPassageDay);
+  const participantId = participantSelect.value;
+
+  passageMatchSelect.innerHTML = "";
+  passageMatchSelect.appendChild(option("Escolha o jogo", ""));
+  dayKnockouts.forEach((match) => {
+    const date = formatMatchDate(match.kickoff_at);
+    const hasPick = participantId && passagePredictions.some((pp) => pp.participant_id === participantId && pp.match_id === match.id);
+    const locked = !canPredictMatch(match) && !isAdmin;
+    const label = `${hasPick ? "✓ " : ""}${match.home_team} x ${match.away_team}${date ? ` - ${date}` : ""}${locked ? " - encerrado" : ""}`;
+    const item = option(label, match.id);
+    passageMatchSelect.appendChild(item);
+  });
+
+  const validMatch = dayKnockouts.some((m) => m.id === savedMatch) ? savedMatch : "";
+  passageMatchSelect.value = validMatch;
+  selectedPassageMatch = validMatch;
+
+  updatePassageContext();
+}
+
+function updatePassageContext() {
+  if (!passageMatchSummary) return;
+  const match = matches.find((m) => m.id === passageMatchSelect?.value);
+  const message = document.querySelector("#passageMessage");
+
+  if (!match) {
+    passageMatchSummary.innerHTML = "<span>Selecione um jogo mata-mata para indicar quem vai se classificar.</span>";
+    passageMatchSummary.className = "selected-match";
+    passagePickSection?.classList.add("hidden");
+    passageDeadlineBadge?.classList.add("hidden");
+    if (message) message.textContent = "";
+    return;
+  }
+
+  const participantId = participantSelect.value;
+  const existingPick = participantId
+    ? passagePredictions.find((pp) => pp.participant_id === participantId && pp.match_id === match.id)
+    : null;
+
+  if (existingPick && (isAdmin || arePredictionsReleased(match))) {
+    passageMatchSummary.innerHTML = `<span class="existing-label">Palpite salvo</span><strong class="existing-score">${escapeHtml(existingPick.pick)}</strong>`;
+    passageMatchSummary.className = "selected-match has-prediction";
+  } else if (existingPick) {
+    passageMatchSummary.innerHTML = `<span class="existing-label">Palpite salvo</span><span>${escapeHtml(match.home_team)} x ${escapeHtml(match.away_team)}</span>`;
+    passageMatchSummary.className = "selected-match has-prediction";
+  } else {
+    passageMatchSummary.innerHTML = `<span>${escapeHtml(match.home_team)} x ${escapeHtml(match.away_team)}</span>`;
+    passageMatchSummary.className = "selected-match";
+  }
+
+  const canPredict = canPredictMatch(match);
+  if (passageDeadlineBadge) {
+    if (!canPredict && !isAdmin) {
+      passageDeadlineBadge.textContent = `Palpites encerrados em ${predictionDeadlineText(match)}`;
+      passageDeadlineBadge.className = "deadline-badge deadline-closed";
+      passageDeadlineBadge.classList.remove("hidden");
+    } else if (match.kickoff_at) {
+      passageDeadlineBadge.textContent = `Encerra ${predictionDeadlineText(match)}`;
+      passageDeadlineBadge.className = "deadline-badge";
+      passageDeadlineBadge.classList.remove("hidden");
+    } else {
+      passageDeadlineBadge.classList.add("hidden");
+    }
+  }
+
+  if (passagePickHome) passagePickHome.textContent = match.home_team;
+  if (passagePickAway) passagePickAway.textContent = match.away_team;
+  if (passagePickHome) passagePickHome.dataset.team = match.home_team;
+  if (passagePickAway) passagePickAway.dataset.team = match.away_team;
+
+  passagePickHome?.classList.toggle("selected", Boolean(existingPick && sameText(existingPick.pick, match.home_team)));
+  passagePickAway?.classList.toggle("selected", Boolean(existingPick && sameText(existingPick.pick, match.away_team)));
+
+  const canShow = canPredict || isAdmin || Boolean(existingPick);
+  passagePickSection?.classList.toggle("hidden", !canShow);
+
+  if (passagePickHome) passagePickHome.disabled = !canPredict && !isAdmin;
+  if (passagePickAway) passagePickAway.disabled = !canPredict && !isAdmin;
+
+  if (message) message.textContent = "";
+}
+
+function updateKnockoutAdminFields() {
+  const match = matches.find((m) => m.id === resultMatchSelect.value);
+  const fields = document.querySelector("#knockoutAdminFields");
+  const winnerRow = document.querySelector("#knockoutWinnerRow");
+  const isKnockoutCheck = document.querySelector("#isKnockoutCheck");
+  const winnerSelect = document.querySelector("#knockoutWinnerSelect");
+
+  if (!fields) return;
+
+  if (!match) {
+    fields.classList.add("hidden");
+    return;
+  }
+
+  fields.classList.remove("hidden");
+  if (isKnockoutCheck) isKnockoutCheck.checked = Boolean(match.is_knockout);
+
+  if (winnerRow) winnerRow.classList.toggle("hidden", !match.is_knockout);
+
+  if (winnerSelect) {
+    winnerSelect.innerHTML = `<option value="">Ainda nao definido</option>`;
+    winnerSelect.appendChild(option(match.home_team, match.home_team));
+    winnerSelect.appendChild(option(match.away_team, match.away_team));
+    winnerSelect.value = match.knockout_winner || "";
+  }
 }
 
 function syncQuickScoreHighlight() {
@@ -1199,7 +1393,7 @@ function renderRanking() {
       <div class="rank-avatar ${photoSrc ? "" : "no-photo"}" data-initial="${initial}">${avatarImg}</div>
       <div class="rank-main">
         <strong>${participantName}</strong>
-        <small>${participant.matchPoints} pontos - ${participant.bonusPoints + participant.manualPoints} bonus</small>
+        <small>${participant.matchPoints} pts${matches.some((m) => m.is_knockout) ? ` · ${participant.passagePoints} classif.` : ""} · ${participant.bonusPoints + participant.manualPoints} bonus</small>
       </div>
       <strong class="rank-score">${participant.total}</strong>
       <span class="badge ${participant.paid ? "paid" : "pending"}">${participant.paid ? "Pago" : "Pendente"}</span>
@@ -1306,6 +1500,37 @@ function renderMatches() {
       }).join("")
       : "<p>Nenhum palpite nesse jogo ainda.</p>";
 
+    let passageContent = "";
+    if (match.is_knockout) {
+      const matchPassagePredictions = passagePredictions.filter((pp) => pp.match_id === match.id);
+      const winnerKnown = Boolean(match.knockout_winner);
+      const winnerLabel = winnerKnown ? escapeHtml(match.knockout_winner) : "Aguardando";
+
+      const canShowPassagePicks = canShowMatchPredictions(match);
+      const passageRows = matchPassagePredictions.length
+        ? matchPassagePredictions.map((pp) => {
+            const participant = participants.find((p) => p.id === pp.participant_id);
+            const participantName = escapeHtml(participant?.name || "Participante removido");
+            const correct = winnerKnown && sameText(pp.pick, match.knockout_winner);
+            const rowClass = !canShowPassagePicks || !winnerKnown ? "" : correct ? "hit" : "miss";
+            const pickDisplay = canShowPassagePicks ? escapeHtml(pp.pick) : "* * *";
+            const ptsLabel = !canShowPassagePicks || !winnerKnown ? "-- pts" : correct ? "1 pt" : "0 pts";
+            return `<div class="${rowClass}"><span>${participantName}</span><strong>${pickDisplay}</strong><em>${ptsLabel}</em></div>`;
+          }).join("")
+        : "<p>Nenhum palpite de classificacao ainda.</p>";
+
+      passageContent = `
+        <div class="passage-mini-block">
+          <div class="passage-mini-header">
+            <span>Quem passa?</span>
+            ${winnerKnown ? `<strong class="passage-winner">${winnerLabel}</strong>` : `<span class="passage-winner-pending">${winnerLabel}</span>`}
+          </div>
+          <div class="mini-table" aria-label="Palpites de classificacao de ${escapedMatchLabelForAttribute}">
+            ${passageRows}
+          </div>
+        </div>`;
+    }
+
     const card = document.createElement("article");
     card.className = "match-card";
     card.setAttribute("aria-label", `${matchLabel}. ${predictionStatus}`);
@@ -1325,6 +1550,7 @@ function renderMatches() {
       <div class="mini-table" aria-label="Palpites de ${escapedMatchLabelForAttribute}">
         ${predictionsContent}
       </div>
+      ${passageContent}
     `;
     matchesList.appendChild(card);
   });
@@ -1586,6 +1812,59 @@ function renderBracket() {
   });
 }
 
+function renderAdminPassagePanel() {
+  if (!adminPassageTable) return;
+  adminPassageTable.innerHTML = "";
+
+  const match = matches.find((m) => m.id === selectedAdminPassageMatch);
+  const visiblePredictions = match
+    ? passagePredictions.filter((pp) => pp.match_id === match.id)
+    : [];
+
+  visiblePredictions.forEach((pp) => {
+    const participant = participants.find((p) => p.id === pp.participant_id);
+    const participantName = escapeHtml(participant?.name || "Participante removido");
+    const winnerKnown = Boolean(match?.knockout_winner);
+    const correct = winnerKnown && sameText(pp.pick, match.knockout_winner);
+    const statusLabel = !winnerKnown ? "Aguardando" : correct ? "✓ Correto" : "✗ Errado";
+    const statusClass = !winnerKnown ? "" : correct ? "hit" : "miss";
+
+    const homeTeam = escapeHtml(match?.home_team || "");
+    const awayTeam = escapeHtml(match?.away_team || "");
+
+    const row = document.createElement("tr");
+    row.innerHTML = `
+      <td>${participantName}</td>
+      <td><strong>${escapeHtml(pp.pick)}</strong></td>
+      <td>${winnerKnown ? `<strong>${escapeHtml(match.knockout_winner)}</strong>` : "<em>Nao definido</em>"}</td>
+      <td><span class="passage-status ${statusClass}">${statusLabel}</span></td>
+      <td>
+        <select class="passage-pick-change" data-passage-id="${pp.id}" data-home="${homeTeam}" data-away="${awayTeam}" aria-label="Alterar palpite de ${participantName}">
+          <option value="${escapeHtml(pp.pick)}" selected>${escapeHtml(pp.pick)}</option>
+          ${match && !sameText(pp.pick, match.home_team) ? `<option value="${homeTeam}">${homeTeam}</option>` : ""}
+          ${match && !sameText(pp.pick, match.away_team) ? `<option value="${awayTeam}">${awayTeam}</option>` : ""}
+        </select>
+        <button class="secondary compact-save passage-save-btn" type="button" data-passage-save="${pp.id}" aria-label="Salvar alteracao de ${participantName}">Salvar</button>
+      </td>
+      <td>
+        <button class="danger compact-save" type="button" data-remove-passage="${pp.id}" aria-label="Remover palpite de ${participantName}">Remover</button>
+      </td>
+    `;
+    adminPassageTable.appendChild(row);
+  });
+
+  if (adminPassageEmpty) {
+    adminPassageEmpty.style.display = visiblePredictions.length ? "none" : "block";
+    if (!match) {
+      adminPassageEmpty.querySelector("strong").textContent = "Nenhum palpite de classificacao.";
+      adminPassageEmpty.querySelector("span").textContent = "Escolha um jogo mata-mata para ver os palpites.";
+    } else if (!visiblePredictions.length) {
+      adminPassageEmpty.querySelector("strong").textContent = "Nenhum palpite nesse jogo ainda.";
+      adminPassageEmpty.querySelector("span").textContent = "Os palpites aparecem aqui quando os participantes salvarem.";
+    }
+  }
+}
+
 function renderAdminPanel() {
   adminPredictionsTable.innerHTML = "";
   adminBonusTable.innerHTML = "";
@@ -1709,6 +1988,8 @@ function renderAdminPanel() {
   });
 
   adminBonusEmpty.style.display = participantsWithBonus.length ? "none" : "block";
+
+  renderAdminPassagePanel();
 }
 
 function showLoadingBar() {
@@ -1789,6 +2070,7 @@ function render() {
   totalMatches.textContent = matches.length;
   totalPrize.textContent = money(paidCount * ENTRY_VALUE);
   renderSelects();
+  renderPassageSelects();
   renderDayMatchesPreview();
   renderRanking();
   renderMatches();
@@ -1798,6 +2080,7 @@ function render() {
   renderPublicBonusPanel();
   renderAdminPanel();
   fillSpecialResultForm();
+  updateKnockoutAdminFields();
   renderCountdownBanner();
   scheduleNextKickoffRender();
 }
@@ -1821,23 +2104,26 @@ async function loadAll() {
   const logRequest = isAdmin
     ? supabaseClient.from("prediction_logs").select("*").order("occurred_at", { ascending: false })
     : Promise.resolve({ data: [], error: null });
-  const [participantsResult, matchesResult, predictionsResult, logsResult] = await Promise.all([
+  const [participantsResult, matchesResult, predictionsResult, logsResult, passagePredictionsResult] = await Promise.all([
     supabaseClient.from("participants").select(participantColumns).order("created_at", { ascending: true }),
     supabaseClient.from("matches").select("*").order("kickoff_at", { ascending: true, nullsFirst: false }).order("created_at", { ascending: true }),
     supabaseClient.from("predictions").select("*").order("created_at", { ascending: true }),
-    logRequest
+    logRequest,
+    supabaseClient.from("passage_predictions").select("*").order("created_at", { ascending: true })
   ]);
 
   const error =
     participantsResult.error ||
     matchesResult.error ||
-    predictionsResult.error;
+    predictionsResult.error ||
+    passagePredictionsResult.error;
   if (error) throw error;
 
   const previousMatches = matches;
 
   participants = participantsResult.data || [];
   predictionLogs = logsResult.error ? [] : logsResult.data || [];
+  passagePredictions = passagePredictionsResult.data || [];
 
   const deduped = deduplicateMatchData(
     matchesResult.data || [],
@@ -2101,7 +2387,8 @@ matchForm.addEventListener("submit", async (event) => {
       stage,
       home_team: homeTeam,
       away_team: awayTeam,
-      kickoff_at: kickoffAt ? new Date(kickoffAt).toISOString() : null
+      kickoff_at: kickoffAt ? new Date(kickoffAt).toISOString() : null,
+      is_knockout: Boolean(document.querySelector("#isKnockoutNew")?.checked)
     };
 
     await supabaseClient
@@ -2185,12 +2472,23 @@ resultForm.addEventListener("submit", async (event) => {
   const message = document.querySelector("#resultMessage");
 
   try {
+    const isKnockoutCheck = document.querySelector("#isKnockoutCheck");
+    const winnerSelect = document.querySelector("#knockoutWinnerSelect");
+    const knockoutFieldsHidden = document.querySelector("#knockoutAdminFields")?.classList.contains("hidden");
+
+    const payload = {
+      home_score: numberValue("#resultHomeScore"),
+      away_score: numberValue("#resultAwayScore")
+    };
+
+    if (!knockoutFieldsHidden) {
+      payload.is_knockout = Boolean(isKnockoutCheck?.checked);
+      payload.knockout_winner = (isKnockoutCheck?.checked && winnerSelect?.value) ? winnerSelect.value : null;
+    }
+
     await supabaseClient
       .from("matches")
-      .update({
-        home_score: numberValue("#resultHomeScore"),
-        away_score: numberValue("#resultAwayScore")
-      })
+      .update(payload)
       .eq("id", resultMatchSelect.value)
       .throwOnError();
     resultForm.reset();
@@ -2480,6 +2778,39 @@ matchesList.addEventListener("click", async (event) => {
   }
 });
 
+adminPassageTable?.addEventListener("click", async (event) => {
+  if (!requireAdmin()) return;
+
+  const removeBtn = event.target.closest("[data-remove-passage]");
+  if (removeBtn) {
+    if (!window.confirm("Remover esse palpite de classificacao?")) return;
+    try {
+      await supabaseClient.from("passage_predictions").delete().eq("id", removeBtn.dataset.removePassage).throwOnError();
+      await loadAll();
+    } catch (error) {
+      window.alert("Erro ao remover palpite de classificacao.");
+      console.error(error);
+    }
+    return;
+  }
+
+  const saveBtn = event.target.closest("[data-passage-save]");
+  if (saveBtn) {
+    const row = saveBtn.closest("tr");
+    const pickSelect = row?.querySelector("[data-passage-id]");
+    const newPick = pickSelect?.value;
+    const passageId = saveBtn.dataset.passageSave;
+    if (!newPick || !passageId) return;
+    try {
+      await supabaseClient.from("passage_predictions").update({ pick: newPick }).eq("id", passageId).throwOnError();
+      await loadAll();
+    } catch (error) {
+      window.alert("Erro ao alterar palpite de classificacao.");
+      console.error(error);
+    }
+  }
+});
+
 rankingTable.addEventListener("click", async (event) => {
   const button = event.target.closest("[data-remove-participant]");
   if (!button) return;
@@ -2533,6 +2864,15 @@ resultStageSelect.addEventListener("change", () => {
   renderSelects();
 });
 
+resultMatchSelect.addEventListener("change", () => {
+  updateKnockoutAdminFields();
+});
+
+document.querySelector("#isKnockoutCheck")?.addEventListener("change", () => {
+  const checked = document.querySelector("#isKnockoutCheck")?.checked;
+  document.querySelector("#knockoutWinnerRow")?.classList.toggle("hidden", !checked);
+});
+
 adminStageSelect.addEventListener("change", () => {
   selectedAdminDay = adminStageSelect.value;
   selectedAdminMatch = "";
@@ -2549,12 +2889,75 @@ participantSelect.addEventListener("change", () => {
   }
   renderRanking();
   renderSelects();
+  renderPassageSelects();
   renderDayMatchesPreview();
 });
 
 matchSelect.addEventListener("change", () => {
   updatePredictionContext();
   renderDayMatchesPreview();
+});
+
+document.querySelectorAll(".pred-tab").forEach((tab) => {
+  tab.addEventListener("click", () => {
+    activePredTab = tab.dataset.predTab;
+    document.querySelectorAll(".pred-tab").forEach((t) => {
+      t.setAttribute("aria-selected", t.dataset.predTab === activePredTab ? "true" : "false");
+    });
+    document.querySelector("#predTabPlacar")?.classList.toggle("hidden", activePredTab !== "placar");
+    document.querySelector("#predTabClassificacao")?.classList.toggle("hidden", activePredTab !== "classificacao");
+  });
+});
+
+passageStageSelect?.addEventListener("change", () => {
+  selectedPassageDay = passageStageSelect.value;
+  selectedPassageMatch = "";
+  renderPassageSelects();
+});
+
+passageMatchSelect?.addEventListener("change", () => {
+  selectedPassageMatch = passageMatchSelect.value;
+  updatePassageContext();
+});
+
+passagePickSection?.addEventListener("click", async (event) => {
+  const btn = event.target.closest(".passage-pick-btn");
+  if (!btn || btn.disabled) return;
+
+  const message = document.querySelector("#passageMessage");
+  const match = matches.find((m) => m.id === passageMatchSelect.value);
+  const participantId = participantSelect.value;
+
+  if (!match) { if (message) message.textContent = "Selecione um jogo."; return; }
+  if (!participantId) { if (message) message.textContent = "Escolha um participante primeiro."; return; }
+  if (!canPredictMatch(match) && !isAdmin) {
+    if (message) message.textContent = "Palpites desse jogo encerram 1 minuto antes da partida.";
+    return;
+  }
+
+  const pick = btn.dataset.team;
+  const existing = passagePredictions.find((pp) => pp.participant_id === participantId && pp.match_id === match.id);
+
+  if (existing && !isAdmin) {
+    if (message) message.textContent = "Esse palpite ja foi salvo e nao pode ser alterado.";
+    return;
+  }
+
+  try {
+    if (existing && isAdmin) {
+      await supabaseClient.from("passage_predictions").update({ pick }).eq("id", existing.id).throwOnError();
+    } else {
+      await supabaseClient.from("passage_predictions").insert({ participant_id: participantId, match_id: match.id, pick }).throwOnError();
+    }
+    if (message) {
+      message.innerHTML = `✓ Classificacao salva: <strong>${escapeHtml(pick)}</strong>`;
+      message.className = "hint prediction-confirm";
+    }
+    await loadAll();
+  } catch (error) {
+    if (message) message.textContent = "Erro ao salvar palpite de classificacao.";
+    console.error(error);
+  }
 });
 
 document.querySelector("#quickScores").addEventListener("click", (event) => {
@@ -2600,6 +3003,18 @@ predictionLogDaySelect.addEventListener("change", () => {
 predictionLogMatchSelect.addEventListener("change", () => {
   selectedLogMatch = predictionLogMatchSelect.value;
   renderAdminPanel();
+});
+
+adminPassageDaySelect?.addEventListener("change", () => {
+  selectedAdminPassageDay = adminPassageDaySelect.value;
+  selectedAdminPassageMatch = "";
+  renderSelects();
+  renderAdminPassagePanel();
+});
+
+adminPassageMatchSelect?.addEventListener("change", () => {
+  selectedAdminPassageMatch = adminPassageMatchSelect.value;
+  renderAdminPassagePanel();
 });
 
 releasePredictionsButton.addEventListener("click", async () => {
@@ -2712,7 +3127,7 @@ adminLogoutButton.addEventListener("click", async () => {
 });
 
 function subscribeToChanges() {
-  ["participants", "matches", "predictions", "prediction_logs", "special_results"].forEach((table) => {
+  ["participants", "matches", "predictions", "prediction_logs", "special_results", "passage_predictions"].forEach((table) => {
     supabaseClient
       .channel(`${table}-realtime`)
       .on("postgres_changes", { event: "*", schema: "public", table }, () => loadAll())

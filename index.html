@@ -133,6 +133,11 @@
             </div>
           </div>
 
+          <label class="checkbox">
+            <input type="checkbox" id="isKnockoutNew">
+            <span>Jogo de mata-mata</span>
+          </label>
+
           <button class="primary" type="submit">Adicionar jogo</button>
           <p class="hint" id="matchMessage" role="status" aria-live="polite"></p>
         </form>
@@ -152,6 +157,20 @@
             <input id="resultAwayScore" type="number" min="0" max="30" required aria-label="Gols oficiais da selecao B">
           </div>
 
+          <div id="knockoutAdminFields" class="hidden">
+            <div class="divider"></div>
+            <label class="checkbox">
+              <input type="checkbox" id="isKnockoutCheck">
+              <span>Jogo de mata-mata</span>
+            </label>
+            <div id="knockoutWinnerRow" class="hidden">
+              <label for="knockoutWinnerSelect">Quem se classificou</label>
+              <select id="knockoutWinnerSelect">
+                <option value="">Ainda nao definido</option>
+              </select>
+            </div>
+          </div>
+
           <button class="primary" type="submit">Salvar resultado</button>
           <button class="secondary block" id="clearResultButton" type="button">Remover resultado</button>
           <p class="hint" id="resultMessage" role="status" aria-live="polite"></p>
@@ -167,48 +186,77 @@
           <label for="participantSelect">Participante</label>
           <select id="participantSelect" name="participant_id" autocomplete="off" required></select>
 
-          <label for="predictionStageSelect">Dia</label>
-          <select id="predictionStageSelect" name="prediction_day" autocomplete="off"></select>
-
-          <label for="matchSelect">Jogo</label>
-          <select id="matchSelect" name="match_id" autocomplete="off" required></select>
-
-          <div class="deadline-badge hidden" id="predictionDeadlineBadge" role="status" aria-live="polite"></div>
-
-          <div class="selected-match" id="selectedMatchSummary" aria-live="polite">Selecione um jogo para informar o placar.</div>
-          <div class="score-row" role="group" aria-labelledby="predictionScoreLabel" aria-describedby="predictionDeadlineBadge selectedMatchSummary">
-            <span class="visually-hidden" id="predictionScoreLabel">Placar do palpite</span>
-            <div class="score-team">
-              <span class="score-team-name" id="predictionHomeTeamName">Selecao A</span>
-              <input id="predictionHomeScore" name="prediction_home_score" type="number" min="0" max="30" inputmode="numeric" required aria-label="Gols da selecao A no palpite">
-            </div>
-            <span>x</span>
-            <div class="score-team">
-              <span class="score-team-name" id="predictionAwayTeamName">Selecao B</span>
-              <input id="predictionAwayScore" name="prediction_away_score" type="number" min="0" max="30" inputmode="numeric" required aria-label="Gols da selecao B no palpite">
-            </div>
+          <div class="pred-tabs" role="tablist" aria-label="Tipo de palpite">
+            <button type="button" role="tab" class="pred-tab" id="predTabPlacarBtn" data-pred-tab="placar" aria-selected="true" aria-controls="predTabPlacar">Placar</button>
+            <button type="button" role="tab" class="pred-tab" id="predTabClassifBtn" data-pred-tab="classificacao" aria-selected="false" aria-controls="predTabClassificacao">Quem passa</button>
           </div>
 
-          <div class="quick-scores hidden" id="quickScores" aria-label="Placares rapidos">
-            <span class="quick-scores-label">Placares rapidos</span>
-            <div class="quick-scores-grid">
-              <button type="button" class="quick-score-btn" data-home="0" data-away="0">0–0</button>
-              <button type="button" class="quick-score-btn" data-home="1" data-away="0">1–0</button>
-              <button type="button" class="quick-score-btn" data-home="0" data-away="1">0–1</button>
-              <button type="button" class="quick-score-btn" data-home="1" data-away="1">1–1</button>
-              <button type="button" class="quick-score-btn" data-home="2" data-away="0">2–0</button>
-              <button type="button" class="quick-score-btn" data-home="0" data-away="2">0–2</button>
-              <button type="button" class="quick-score-btn" data-home="2" data-away="1">2–1</button>
-              <button type="button" class="quick-score-btn" data-home="1" data-away="2">1–2</button>
-              <button type="button" class="quick-score-btn" data-home="2" data-away="2">2–2</button>
-              <button type="button" class="quick-score-btn" data-home="3" data-away="0">3–0</button>
-              <button type="button" class="quick-score-btn" data-home="0" data-away="3">0–3</button>
-              <button type="button" class="quick-score-btn" data-home="3" data-away="1">3–1</button>
+          <div id="predTabPlacar" role="tabpanel" aria-labelledby="predTabPlacarBtn">
+            <label for="predictionStageSelect">Dia</label>
+            <select id="predictionStageSelect" name="prediction_day" autocomplete="off"></select>
+
+            <label for="matchSelect">Jogo</label>
+            <select id="matchSelect" name="match_id" autocomplete="off" required></select>
+
+            <div class="deadline-badge hidden" id="predictionDeadlineBadge" role="status" aria-live="polite"></div>
+
+            <div class="selected-match" id="selectedMatchSummary" aria-live="polite">Selecione um jogo para informar o placar.</div>
+            <div class="score-row" role="group" aria-labelledby="predictionScoreLabel" aria-describedby="predictionDeadlineBadge selectedMatchSummary">
+              <span class="visually-hidden" id="predictionScoreLabel">Placar do palpite</span>
+              <div class="score-team">
+                <span class="score-team-name" id="predictionHomeTeamName">Selecao A</span>
+                <input id="predictionHomeScore" name="prediction_home_score" type="number" min="0" max="30" inputmode="numeric" required aria-label="Gols da selecao A no palpite">
+              </div>
+              <span>x</span>
+              <div class="score-team">
+                <span class="score-team-name" id="predictionAwayTeamName">Selecao B</span>
+                <input id="predictionAwayScore" name="prediction_away_score" type="number" min="0" max="30" inputmode="numeric" required aria-label="Gols da selecao B no palpite">
+              </div>
             </div>
+
+            <div class="quick-scores hidden" id="quickScores" aria-label="Placares rapidos">
+              <span class="quick-scores-label">Placares rapidos</span>
+              <div class="quick-scores-grid">
+                <button type="button" class="quick-score-btn" data-home="0" data-away="0">0–0</button>
+                <button type="button" class="quick-score-btn" data-home="1" data-away="0">1–0</button>
+                <button type="button" class="quick-score-btn" data-home="0" data-away="1">0–1</button>
+                <button type="button" class="quick-score-btn" data-home="1" data-away="1">1–1</button>
+                <button type="button" class="quick-score-btn" data-home="2" data-away="0">2–0</button>
+                <button type="button" class="quick-score-btn" data-home="0" data-away="2">0–2</button>
+                <button type="button" class="quick-score-btn" data-home="2" data-away="1">2–1</button>
+                <button type="button" class="quick-score-btn" data-home="1" data-away="2">1–2</button>
+                <button type="button" class="quick-score-btn" data-home="2" data-away="2">2–2</button>
+                <button type="button" class="quick-score-btn" data-home="3" data-away="0">3–0</button>
+                <button type="button" class="quick-score-btn" data-home="0" data-away="3">0–3</button>
+                <button type="button" class="quick-score-btn" data-home="3" data-away="1">3–1</button>
+              </div>
+            </div>
+
+            <button class="primary" type="submit">Salvar meu palpite</button>
+            <p class="hint" id="predictionMessage" role="status" aria-live="polite"></p>
           </div>
 
-          <button class="primary" type="submit">Salvar meu palpite</button>
-          <p class="hint" id="predictionMessage" role="status" aria-live="polite"></p>
+          <div id="predTabClassificacao" role="tabpanel" aria-labelledby="predTabClassifBtn" class="hidden">
+            <label for="passageStageSelect">Dia</label>
+            <select id="passageStageSelect" autocomplete="off"></select>
+
+            <label for="passageMatchSelect">Jogo mata-mata</label>
+            <select id="passageMatchSelect" autocomplete="off"></select>
+
+            <div class="deadline-badge hidden" id="passageDeadlineBadge" role="status" aria-live="polite"></div>
+
+            <div class="selected-match" id="passageMatchSummary" aria-live="polite">Selecione um jogo mata-mata para indicar quem vai se classificar.</div>
+
+            <div class="passage-pick hidden" id="passagePickSection">
+              <p class="passage-pick-label">Quem vai se classificar?</p>
+              <div class="passage-pick-row">
+                <button type="button" class="passage-pick-btn" id="passagePickHome"></button>
+                <button type="button" class="passage-pick-btn" id="passagePickAway"></button>
+              </div>
+            </div>
+
+            <p class="hint" id="passageMessage" role="status" aria-live="polite"></p>
+          </div>
         </form>
 
         <section class="panel table-panel" id="dayMatchesPanel" aria-label="Jogos do dia">
@@ -227,7 +275,7 @@
               <h2 id="ranking-title">Ranking</h2>
               <details class="ranking-rules">
                 <summary>Regras de pontuação</summary>
-                <p>1 ponto pelo resultado final, 3 pelo placar exato, 5 pelo artilheiro, 3 por finalista e 5 pelo campeao da final.</p>
+                <p>1 ponto pelo resultado final, 3 pelo placar exato. Mata-mata: 1 ponto por acertar quem se classifica. Bonus: 5 pelo artilheiro, 3 por finalista e 5 pelo campeao da final.</p>
               </details>
             </div>
           </div>
@@ -362,6 +410,10 @@
           <button class="admin-tab" id="adminBonusTab" type="button" role="tab" aria-controls="adminBonusPanel" aria-selected="false" data-admin-tab="bonus">
             <strong>Bonus</strong>
             <span>Palpites e resultados especiais</span>
+          </button>
+          <button class="admin-tab" id="adminPassageTab" type="button" role="tab" aria-controls="adminPassagePanel" aria-selected="false" data-admin-tab="passage">
+            <strong>Classificacao</strong>
+            <span>Palpites de quem passa no mata-mata</span>
           </button>
         </div>
 
@@ -578,6 +630,45 @@
             <div class="empty" id="adminBonusEmpty">
               <strong>Nenhum bonus preenchido.</strong>
               <span>Quando os participantes salvarem os bonus, eles aparecem aqui.</span>
+            </div>
+          </div>
+        </section>
+
+        <section class="admin-workspace hidden" id="adminPassagePanel" role="tabpanel" aria-labelledby="adminPassageTab" data-admin-panel="passage">
+          <div class="admin-workspace-heading">
+            <div>
+              <h3>Classificacao mata-mata</h3>
+              <p>Veja, altere ou remova os palpites de quem vai passar de fase.</p>
+            </div>
+          </div>
+          <div class="admin-tools">
+            <div>
+              <label for="adminPassageDaySelect">Dia</label>
+              <select id="adminPassageDaySelect"></select>
+            </div>
+            <div>
+              <label for="adminPassageMatchSelect">Jogo mata-mata</label>
+              <select id="adminPassageMatchSelect"></select>
+            </div>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <caption>Palpites de classificacao do jogo selecionado</caption>
+              <thead>
+                <tr>
+                  <th scope="col">Participante</th>
+                  <th scope="col">Palpite</th>
+                  <th scope="col">Classificado oficial</th>
+                  <th scope="col">Status</th>
+                  <th scope="col">Alterar</th>
+                  <th scope="col">Remover</th>
+                </tr>
+              </thead>
+              <tbody id="adminPassageTable"></tbody>
+            </table>
+            <div class="empty" id="adminPassageEmpty">
+              <strong>Nenhum palpite de classificacao.</strong>
+              <span>Escolha um jogo mata-mata para ver os palpites.</span>
             </div>
           </div>
         </section>
