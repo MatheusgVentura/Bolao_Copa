@@ -2213,48 +2213,83 @@ function normalizeOfficialMatches(payload) {
     .filter(Boolean);
 }
 
+async function syncMatchesFromOfficial() {
+  const url = appConfig?.officialMatchesUrl;
+  if (!url || !supabaseClient) return 0;
+
+  const response = await fetch(url, { cache: "no-store" });
+  if (!response.ok) throw new Error(`HTTP ${response.status}`);
+
+  const officialMatches = normalizeOfficialMatches(await response.json());
+  if (!officialMatches.length) return 0;
+
+  // Pass 1: migrate records with old fallback source_id (same teams + kickoff, different id)
+  const migrations = officialMatches
+    .map((om) => {
+      const existing = matches.find(
+        (m) =>
+          m.source_id !== om.source_id &&
+          sameText(m.home_team, om.home_team) &&
+          sameText(m.away_team, om.away_team) &&
+          m.kickoff_at &&
+          om.kickoff_at &&
+          new Date(m.kickoff_at).getTime() === new Date(om.kickoff_at).getTime()
+      );
+      return existing ? { id: existing.id, source_id: om.source_id } : null;
+    })
+    .filter(Boolean);
+
+  if (migrations.length) {
+    await Promise.all(
+      migrations.map(({ id, source_id }) =>
+        supabaseClient.from("matches").update({ source_id }).eq("id", id).throwOnError()
+      )
+    );
+  }
+
+  // Pass 2: migrate by kickoff_at only — covers TBD → real team transitions in knockout stage.
+  // Only when exactly one DB match shares that kickoff time (avoids group-stage ambiguity
+  // where two matches can start simultaneously).
+  const migratedIds = new Set(migrations.map((m) => m.id));
+  const kickoffMigrations = officialMatches
+    .map((om) => {
+      if (!om.kickoff_at) return null;
+      const omTime = new Date(om.kickoff_at).getTime();
+      const candidates = matches.filter(
+        (m) =>
+          m.source_id !== om.source_id &&
+          !migratedIds.has(m.id) &&
+          m.kickoff_at &&
+          new Date(m.kickoff_at).getTime() === omTime
+      );
+      return candidates.length === 1 ? { id: candidates[0].id, source_id: om.source_id } : null;
+    })
+    .filter(Boolean);
+
+  if (kickoffMigrations.length) {
+    await Promise.all(
+      kickoffMigrations.map(({ id, source_id }) =>
+        supabaseClient.from("matches").update({ source_id }).eq("id", id).throwOnError()
+      )
+    );
+  }
+
+  await supabaseClient
+    .from("matches")
+    .upsert(officialMatches, { onConflict: "source_id" })
+    .throwOnError();
+
+  return officialMatches.length;
+}
+
 async function syncOfficialResults() {
   if (resultSyncInProgress || !appConfig?.officialMatchesUrl || !supabaseClient) return;
 
   resultSyncInProgress = true;
 
   try {
-    const response = await fetch(appConfig.officialMatchesUrl, { cache: "no-store" });
-    if (!response.ok) throw new Error(`HTTP ${response.status}`);
-
-    const officialResults = normalizeOfficialMatches(await response.json())
-      .filter((match) => Number.isInteger(match.home_score) && Number.isInteger(match.away_score))
-      .map((officialMatch) => {
-        const savedMatch = matches.find((match) =>
-          match.source_id === officialMatch.source_id ||
-          (sameText(match.home_team, officialMatch.home_team) &&
-            sameText(match.away_team, officialMatch.away_team) &&
-            match.kickoff_at && officialMatch.kickoff_at &&
-            new Date(match.kickoff_at).getTime() === new Date(officialMatch.kickoff_at).getTime())
-        );
-
-        return savedMatch ? { savedMatch, officialMatch } : null;
-      })
-      .filter(Boolean)
-      .filter(({ savedMatch, officialMatch }) =>
-        savedMatch.home_score !== officialMatch.home_score ||
-        savedMatch.away_score !== officialMatch.away_score
-      );
-
-    if (!officialResults.length) return;
-
-    await Promise.all(officialResults.map(({ savedMatch, officialMatch }) =>
-      supabaseClient
-        .from("matches")
-        .update({
-          home_score: officialMatch.home_score,
-          away_score: officialMatch.away_score
-        })
-        .eq("id", savedMatch.id)
-        .throwOnError()
-    ));
-
-    await loadAll();
+    const count = await syncMatchesFromOfficial();
+    if (count) await loadAll();
   } catch (error) {
     console.error("Erro ao atualizar resultados automaticamente.", error);
   } finally {
@@ -2266,9 +2301,7 @@ async function importOfficialMatches() {
   if (!requireAdmin()) return;
 
   const message = document.querySelector("#importMessage");
-  const url = appConfig?.officialMatchesUrl;
-
-  if (!url) {
+  if (!appConfig?.officialMatchesUrl) {
     message.textContent = "Coloque a URL dos jogos em supabase-config.js.";
     return;
   }
@@ -2277,46 +2310,8 @@ async function importOfficialMatches() {
   importMatchesButton.disabled = true;
 
   try {
-    const response = await fetch(url);
-    if (!response.ok) throw new Error(`HTTP ${response.status}`);
-
-    const officialMatches = normalizeOfficialMatches(await response.json());
-    if (!officialMatches.length) {
-      message.textContent = "Nao encontrei jogos nessa URL.";
-      return;
-    }
-
-    // Migrate existing records that were saved with the old fallback source_id
-    // (team-name based) to the correct numeric source_id from the JSON.
-    const migrations = officialMatches
-      .map((om) => {
-        const existing = matches.find(
-          (m) =>
-            m.source_id !== om.source_id &&
-            sameText(m.home_team, om.home_team) &&
-            sameText(m.away_team, om.away_team) &&
-            m.kickoff_at &&
-            om.kickoff_at &&
-            new Date(m.kickoff_at).getTime() === new Date(om.kickoff_at).getTime()
-        );
-        return existing ? { id: existing.id, source_id: om.source_id } : null;
-      })
-      .filter(Boolean);
-
-    if (migrations.length) {
-      await Promise.all(
-        migrations.map(({ id, source_id }) =>
-          supabaseClient.from("matches").update({ source_id }).eq("id", id).throwOnError()
-        )
-      );
-    }
-
-    await supabaseClient
-      .from("matches")
-      .upsert(officialMatches, { onConflict: "source_id" })
-      .throwOnError();
-
-    message.textContent = `${officialMatches.length} jogos importados.`;
+    const count = await syncMatchesFromOfficial();
+    message.textContent = count ? `${count} jogos importados.` : "Nao encontrei jogos nessa URL.";
     await loadAll();
   } catch (error) {
     message.textContent = "Erro ao importar. Confira a URL ou CORS da API.";
