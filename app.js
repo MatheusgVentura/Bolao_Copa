@@ -2220,13 +2220,25 @@ async function syncMatchesFromOfficial() {
   const response = await fetch(url, { cache: "no-store" });
   if (!response.ok) throw new Error(`HTTP ${response.status}`);
 
-  const officialMatches = normalizeOfficialMatches(await response.json());
-  if (!officialMatches.length) return 0;
+  const rawOfficialMatches = normalizeOfficialMatches(await response.json());
+  if (!rawOfficialMatches.length) return 0;
+  const officialMatches = rawOfficialMatches.filter(
+    (m, i, arr) => arr.findIndex((x) => x.source_id === m.source_id) === i
+  );
+
+  // Remove duplicates already in the DB before migrating, otherwise a migration could try to
+  // assign a source_id that another duplicate row already owns (unique constraint violation).
+  const { data: rawDbMatches } = await supabaseClient.from("matches").select("*").throwOnError();
+  const dbMatches = await removeDuplicateMatchesFromDB(rawDbMatches || []);
+
+  // source_ids already present in the DB — never migrate a record onto one of these.
+  const existingSourceIds = new Set(dbMatches.map((m) => m.source_id));
 
   // Pass 1: migrate records with old fallback source_id (same teams + kickoff, different id)
   const migrations = officialMatches
     .map((om) => {
-      const existing = matches.find(
+      if (existingSourceIds.has(om.source_id)) return null;
+      const existing = dbMatches.find(
         (m) =>
           m.source_id !== om.source_id &&
           sameText(m.home_team, om.home_team) &&
@@ -2245,6 +2257,7 @@ async function syncMatchesFromOfficial() {
         supabaseClient.from("matches").update({ source_id }).eq("id", id).throwOnError()
       )
     );
+    migrations.forEach(({ source_id }) => existingSourceIds.add(source_id));
   }
 
   // Pass 2: migrate by kickoff_at only — covers TBD → real team transitions in knockout stage.
@@ -2253,9 +2266,9 @@ async function syncMatchesFromOfficial() {
   const migratedIds = new Set(migrations.map((m) => m.id));
   const kickoffMigrations = officialMatches
     .map((om) => {
-      if (!om.kickoff_at) return null;
+      if (!om.kickoff_at || existingSourceIds.has(om.source_id)) return null;
       const omTime = new Date(om.kickoff_at).getTime();
-      const candidates = matches.filter(
+      const candidates = dbMatches.filter(
         (m) =>
           m.source_id !== om.source_id &&
           !migratedIds.has(m.id) &&
@@ -2279,10 +2292,25 @@ async function syncMatchesFromOfficial() {
     .upsert(officialMatches, { onConflict: "source_id" })
     .throwOnError();
 
-  const { data: dbMatches } = await supabaseClient.from("matches").select("*").throwOnError();
-  await removeDuplicateMatchesFromDB(dbMatches || []);
+  // Final safety pass: clean anything that may have slipped through after the upsert.
+  const { data: dbMatchesAfter } = await supabaseClient.from("matches").select("*").throwOnError();
+  await removeDuplicateMatchesFromDB(dbMatchesAfter || []);
 
   return officialMatches.length;
+}
+
+// A team name is a placeholder when it represents an unresolved knockout slot
+// rather than a real team — e.g. "3/A/B/C/D/F", "1A", "2B", "W73", "L49", "Winner Group A".
+function isPlaceholderTeam(name) {
+  const n = String(name || "").trim();
+  if (!n) return true;
+  if (n.includes("/")) return true; // third-place permutations like "3/A/B/C/D/F"
+  if (/\d/.test(n)) return true; // group positions / match refs like "1A", "W73"
+  return /(winner|runner|loser|vencedor|perdedor|1st|2nd|3rd)/i.test(n);
+}
+
+function matchHasPlaceholder(match) {
+  return isPlaceholderTeam(match.home_team) || isPlaceholderTeam(match.away_team);
 }
 
 async function removeDuplicateMatchesFromDB(dbMatches) {
@@ -2297,24 +2325,66 @@ async function removeDuplicateMatchesFromDB(dbMatches) {
     groups.get(key).push(match);
   }
 
+  const keptMatches = [];
   const toDelete = [];
   const predictionRemaps = [];
 
   for (const group of groups.values()) {
-    if (group.length <= 1) continue;
+    if (group.length <= 1) {
+      keptMatches.push(group[0]);
+      continue;
+    }
     const sorted = [...group].sort((a, b) => {
       const lenDiff = (a.source_id || "").length - (b.source_id || "").length;
       if (lenDiff !== 0) return lenDiff;
       return (hasOfficialResult(b) ? 1 : 0) - (hasOfficialResult(a) ? 1 : 0);
     });
     const primary = sorted[0];
+    keptMatches.push(primary);
     for (const dup of sorted.slice(1)) {
       predictionRemaps.push({ from: dup.id, to: primary.id });
       toDelete.push(dup.id);
     }
   }
 
-  if (!toDelete.length) return;
+  // Phase B: collapse provisional placeholder fixtures (an unresolved knockout slot like
+  // "Germany x 3/A/B/C/D/F") into their resolved counterpart at the same kickoff
+  // ("Germany x Paraguay"), remapping any predictions onto the resolved match.
+  const byKickoff = new Map();
+  for (const m of keptMatches) {
+    if (!m.kickoff_at) continue;
+    const k = new Date(m.kickoff_at).getTime();
+    if (!byKickoff.has(k)) byKickoff.set(k, []);
+    byKickoff.get(k).push(m);
+  }
+
+  const removedByPlaceholder = new Set();
+  for (const group of byKickoff.values()) {
+    if (group.length <= 1) continue;
+    const resolved = group.filter((m) => !matchHasPlaceholder(m));
+    const provisional = group.filter((m) => matchHasPlaceholder(m));
+    if (!provisional.length || !resolved.length) continue;
+
+    for (const prov of provisional) {
+      // One resolved match at this kickoff → unambiguous. Several (simultaneous group-stage
+      // kickoffs) → require a shared real team to avoid pairing the wrong fixtures.
+      const target =
+        resolved.length === 1
+          ? resolved[0]
+          : resolved.find(
+              (r) =>
+                sameText(r.home_team, prov.home_team) || sameText(r.away_team, prov.away_team)
+            );
+      if (!target) continue;
+      predictionRemaps.push({ from: prov.id, to: target.id });
+      toDelete.push(prov.id);
+      removedByPlaceholder.add(prov.id);
+    }
+  }
+
+  const survivors = keptMatches.filter((m) => !removedByPlaceholder.has(m.id));
+
+  if (!toDelete.length) return survivors;
 
   for (const { from, to } of predictionRemaps) {
     const { data: dupPreds } = await supabaseClient
@@ -2337,6 +2407,8 @@ async function removeDuplicateMatchesFromDB(dbMatches) {
   }
 
   await supabaseClient.from("matches").delete().in("id", toDelete).throwOnError();
+
+  return survivors;
 }
 
 async function syncOfficialResults() {
@@ -2371,7 +2443,7 @@ async function importOfficialMatches() {
     message.textContent = count ? `${count} jogos importados.` : "Nao encontrei jogos nessa URL.";
     await loadAll();
   } catch (error) {
-    message.textContent = "Erro ao importar. Confira a URL ou CORS da API.";
+    message.textContent = `Erro: ${error?.message || error}`;
     console.error(error);
   } finally {
     importMatchesButton.disabled = false;
