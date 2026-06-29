@@ -2279,7 +2279,50 @@ async function syncMatchesFromOfficial() {
     .upsert(officialMatches, { onConflict: "source_id" })
     .throwOnError();
 
+  const { data: dbMatches } = await supabaseClient.from("matches").select("*").throwOnError();
+  await removeDuplicateMatchesFromDB(dbMatches || []);
+
   return officialMatches.length;
+}
+
+async function removeDuplicateMatchesFromDB(dbMatches) {
+  const groups = new Map();
+  for (const match of dbMatches) {
+    const key = [
+      normalizeText(match.home_team || ""),
+      normalizeText(match.away_team || ""),
+      match.kickoff_at || match.id
+    ].join("|");
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key).push(match);
+  }
+
+  const toDelete = [];
+  const predictionRemaps = [];
+
+  for (const group of groups.values()) {
+    if (group.length <= 1) continue;
+    const sorted = [...group].sort((a, b) => {
+      const lenDiff = (a.source_id || "").length - (b.source_id || "").length;
+      if (lenDiff !== 0) return lenDiff;
+      return (hasOfficialResult(b) ? 1 : 0) - (hasOfficialResult(a) ? 1 : 0);
+    });
+    const primary = sorted[0];
+    for (const dup of sorted.slice(1)) {
+      predictionRemaps.push({ from: dup.id, to: primary.id });
+      toDelete.push(dup.id);
+    }
+  }
+
+  if (!toDelete.length) return;
+
+  await Promise.all(
+    predictionRemaps.map(({ from, to }) =>
+      supabaseClient.from("predictions").update({ match_id: to }).eq("match_id", from).throwOnError()
+    )
+  );
+
+  await supabaseClient.from("matches").delete().in("id", toDelete).throwOnError();
 }
 
 async function syncOfficialResults() {
