@@ -2939,11 +2939,6 @@ button.bracket-card:focus-visible {
   justify-content: center;
 }
 
-.bracket-card--predicted {
-  background: var(--primary-soft);
-  border-color: rgba(8, 115, 78, 0.32);
-}
-
 .bc-date {
   font-size: 9px;
   color: var(--muted);
@@ -2998,16 +2993,6 @@ button.bracket-card:focus-visible {
   letter-spacing: 0.02em;
 }
 
-.bc-my-pred {
-  font-size: 9px;
-  color: var(--primary);
-  font-weight: 700;
-  margin-top: 3px;
-  padding-top: 3px;
-  border-top: 1px dashed rgba(8, 115, 78, 0.25);
-  display: block;
-  font-family: var(--mono);
-}
 
 .bc-placeholder {
   font-size: 10px;
@@ -3105,11 +3090,6 @@ button.bracket-card:focus-visible {
 
 [data-theme="dark"] .bracket-section .table-header {
   background: linear-gradient(180deg, rgba(8, 115, 78, 0.1), transparent 56px);
-}
-
-[data-theme="dark"] .bracket-card--predicted {
-  background: rgba(8, 115, 78, 0.18);
-  border-color: rgba(8, 115, 78, 0.45);
 }
 
 [data-theme="dark"] .bracket-final-podium {

@@ -1625,9 +1625,6 @@ function createBracketCard(match, sourceId) {
 
   const hasResult = hasOfficialResult(match);
   const canPredict = canPredictMatch(match);
-  const myPrediction = predictions.find(
-    (p) => p.match_id === match.id && p.participant_id === preferredParticipantId
-  );
   const homeWon = hasResult && match.home_score > match.away_score;
   const awayWon = hasResult && match.away_score > match.home_score;
 
@@ -1637,7 +1634,6 @@ function createBracketCard(match, sourceId) {
     "bracket-card",
     hasResult ? "bracket-card--finished" : "",
     canPredict ? "bracket-card--open" : "",
-    myPrediction ? "bracket-card--predicted" : "",
   ].filter(Boolean).join(" ");
   card.dataset.bracketMatch = match.id;
   card.setAttribute("aria-label", `${match.home_team} x ${match.away_team}. Clique para palpitar.`);
@@ -1661,12 +1657,7 @@ function createBracketCard(match, sourceId) {
   card.appendChild(homeTeamEl);
   card.appendChild(awayTeamEl);
 
-  if (myPrediction) {
-    const predEl = document.createElement("span");
-    predEl.className = "bc-my-pred";
-    predEl.textContent = `Meu: ${myPrediction.home_score}–${myPrediction.away_score}`;
-    card.appendChild(predEl);
-  } else if (canPredict) {
+  if (canPredict) {
     const ctaEl = document.createElement("span");
     ctaEl.className = "bc-badge";
     ctaEl.textContent = "Palpitar ›";
