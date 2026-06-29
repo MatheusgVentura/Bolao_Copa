@@ -2316,11 +2316,25 @@ async function removeDuplicateMatchesFromDB(dbMatches) {
 
   if (!toDelete.length) return;
 
-  await Promise.all(
-    predictionRemaps.map(({ from, to }) =>
-      supabaseClient.from("predictions").update({ match_id: to }).eq("match_id", from).throwOnError()
-    )
-  );
+  for (const { from, to } of predictionRemaps) {
+    const { data: dupPreds } = await supabaseClient
+      .from("predictions").select("id, participant_id").eq("match_id", from).throwOnError();
+    if (!dupPreds?.length) continue;
+
+    const { data: primaryPreds } = await supabaseClient
+      .from("predictions").select("participant_id").eq("match_id", to).throwOnError();
+    const hasPrimary = new Set((primaryPreds || []).map((p) => p.participant_id));
+
+    const toUpdateIds = dupPreds.filter((p) => !hasPrimary.has(p.participant_id)).map((p) => p.id);
+    const toDeleteIds = dupPreds.filter((p) => hasPrimary.has(p.participant_id)).map((p) => p.id);
+
+    if (toUpdateIds.length) {
+      await supabaseClient.from("predictions").update({ match_id: to }).in("id", toUpdateIds).throwOnError();
+    }
+    if (toDeleteIds.length) {
+      await supabaseClient.from("predictions").delete().in("id", toDeleteIds).throwOnError();
+    }
+  }
 
   await supabaseClient.from("matches").delete().in("id", toDelete).throwOnError();
 }
