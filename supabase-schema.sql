@@ -242,38 +242,9 @@ begin
   end loop;
 end $$;
 
--- Classificacao mata-mata
+-- Mata-mata (chave): colunas usadas pela arvore de classificacao
 alter table public.matches add column if not exists is_knockout boolean not null default false;
 alter table public.matches add column if not exists knockout_winner text check (char_length(knockout_winner) <= 40);
 
-create table if not exists public.passage_predictions (
-  id uuid primary key default gen_random_uuid(),
-  participant_id uuid not null references public.participants(id) on delete cascade,
-  match_id uuid not null references public.matches(id) on delete cascade,
-  pick text not null check (char_length(pick) between 1 and 40),
-  created_at timestamptz not null default now(),
-  unique (participant_id, match_id)
-);
-
-alter table public.passage_predictions enable row level security;
-
-drop policy if exists "Link pode ver passage_predictions" on public.passage_predictions;
-create policy "Link pode ver passage_predictions" on public.passage_predictions for select to anon using (true);
-drop policy if exists "Link pode salvar passage_predictions" on public.passage_predictions;
-create policy "Link pode salvar passage_predictions" on public.passage_predictions for insert to anon with check (true);
-drop policy if exists "Link pode editar passage_predictions" on public.passage_predictions;
-create policy "Link pode editar passage_predictions" on public.passage_predictions for update to anon using (true) with check (true);
-drop policy if exists "Link pode remover passage_predictions" on public.passage_predictions;
-create policy "Link pode remover passage_predictions" on public.passage_predictions for delete to anon using (true);
-
-do $$
-begin
-  if not exists (
-    select 1 from pg_publication_tables
-    where pubname = 'supabase_realtime'
-      and schemaname = 'public'
-      and tablename = 'passage_predictions'
-  ) then
-    alter publication supabase_realtime add table public.passage_predictions;
-  end if;
-end $$;
+-- Funcionalidade "Quem passa" removida: descarta a tabela e todos os palpites dela.
+drop table if exists public.passage_predictions cascade;

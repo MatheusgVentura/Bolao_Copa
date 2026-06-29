@@ -186,12 +186,7 @@
           <label for="participantSelect">Participante</label>
           <select id="participantSelect" name="participant_id" autocomplete="off" required></select>
 
-          <div class="pred-tabs" role="tablist" aria-label="Tipo de palpite">
-            <button type="button" role="tab" class="pred-tab" id="predTabPlacarBtn" data-pred-tab="placar" aria-selected="true" aria-controls="predTabPlacar">Placar</button>
-            <button type="button" role="tab" class="pred-tab" id="predTabClassifBtn" data-pred-tab="classificacao" aria-selected="false" aria-controls="predTabClassificacao">Quem passa</button>
-          </div>
-
-          <div id="predTabPlacar" role="tabpanel" aria-labelledby="predTabPlacarBtn">
+          <div id="predTabPlacar">
             <label for="predictionStageSelect">Dia</label>
             <select id="predictionStageSelect" name="prediction_day" autocomplete="off"></select>
 
@@ -234,28 +229,6 @@
 
             <button class="primary" type="submit">Salvar meu palpite</button>
             <p class="hint" id="predictionMessage" role="status" aria-live="polite"></p>
-          </div>
-
-          <div id="predTabClassificacao" role="tabpanel" aria-labelledby="predTabClassifBtn" class="hidden">
-            <label for="passageStageSelect">Dia</label>
-            <select id="passageStageSelect" autocomplete="off"></select>
-
-            <label for="passageMatchSelect">Jogo mata-mata</label>
-            <select id="passageMatchSelect" autocomplete="off"></select>
-
-            <div class="deadline-badge hidden" id="passageDeadlineBadge" role="status" aria-live="polite"></div>
-
-            <div class="selected-match" id="passageMatchSummary" aria-live="polite">Selecione um jogo mata-mata para indicar quem vai se classificar.</div>
-
-            <div class="passage-pick hidden" id="passagePickSection">
-              <p class="passage-pick-label">Quem vai se classificar?</p>
-              <div class="passage-pick-row">
-                <button type="button" class="passage-pick-btn" id="passagePickHome"></button>
-                <button type="button" class="passage-pick-btn" id="passagePickAway"></button>
-              </div>
-            </div>
-
-            <p class="hint" id="passageMessage" role="status" aria-live="polite"></p>
           </div>
         </form>
 
@@ -410,10 +383,6 @@
           <button class="admin-tab" id="adminBonusTab" type="button" role="tab" aria-controls="adminBonusPanel" aria-selected="false" data-admin-tab="bonus">
             <strong>Bonus</strong>
             <span>Palpites e resultados especiais</span>
-          </button>
-          <button class="admin-tab" id="adminPassageTab" type="button" role="tab" aria-controls="adminPassagePanel" aria-selected="false" data-admin-tab="passage">
-            <strong>Classificacao</strong>
-            <span>Palpites de quem passa no mata-mata</span>
           </button>
         </div>
 
@@ -634,44 +603,6 @@
           </div>
         </section>
 
-        <section class="admin-workspace hidden" id="adminPassagePanel" role="tabpanel" aria-labelledby="adminPassageTab" data-admin-panel="passage">
-          <div class="admin-workspace-heading">
-            <div>
-              <h3>Classificacao mata-mata</h3>
-              <p>Veja, altere ou remova os palpites de quem vai passar de fase.</p>
-            </div>
-          </div>
-          <div class="admin-tools">
-            <div>
-              <label for="adminPassageDaySelect">Dia</label>
-              <select id="adminPassageDaySelect"></select>
-            </div>
-            <div>
-              <label for="adminPassageMatchSelect">Jogo mata-mata</label>
-              <select id="adminPassageMatchSelect"></select>
-            </div>
-          </div>
-          <div class="table-wrap">
-            <table>
-              <caption>Palpites de classificacao do jogo selecionado</caption>
-              <thead>
-                <tr>
-                  <th scope="col">Participante</th>
-                  <th scope="col">Palpite</th>
-                  <th scope="col">Classificado oficial</th>
-                  <th scope="col">Status</th>
-                  <th scope="col">Alterar</th>
-                  <th scope="col">Remover</th>
-                </tr>
-              </thead>
-              <tbody id="adminPassageTable"></tbody>
-            </table>
-            <div class="empty" id="adminPassageEmpty">
-              <strong>Nenhum palpite de classificacao.</strong>
-              <span>Escolha um jogo mata-mata para ver os palpites.</span>
-            </div>
-          </div>
-        </section>
       </section>
     </main>
 
