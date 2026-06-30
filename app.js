@@ -1822,6 +1822,15 @@ function scheduleNextKickoffRender() {
 }
 
 function render() {
+  // renderMatches/renderRanking limpam o innerHTML e reconstroem tudo. Por um
+  // instante a pagina fica curta e o navegador "gruda" o scroll no topo (clamp).
+  // Como render() roda em sync de resultados/realtime (varias vezes durante um
+  // jogo ao vivo), isso jogava o usuario pro topo no meio da leitura dos
+  // palpites. Guardamos a posicao antes e restauramos depois, ainda no mesmo
+  // ciclo sincrono (antes do navegador repintar).
+  const previousScrollX = window.scrollX;
+  const previousScrollY = window.scrollY;
+
   const paidCount = participants.filter((participant) => participant.paid).length;
   totalParticipants.textContent = participants.length;
   totalMatches.textContent = matches.length;
@@ -1839,6 +1848,10 @@ function render() {
   updateKnockoutAdminFields();
   renderCountdownBanner();
   scheduleNextKickoffRender();
+
+  // behavior "instant" para ignorar o scroll-behavior: smooth do CSS e
+  // reposicionar sem animacao perceptivel.
+  window.scrollTo({ left: previousScrollX, top: previousScrollY, behavior: "instant" });
 }
 
 async function loadAll() {
