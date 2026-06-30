@@ -1321,7 +1321,10 @@ td {
   display: grid;
   gap: 10px;
   max-height: 560px;
-  overflow: auto;
+  overflow-y: auto;
+  /* Reserva o espaco da barra interna para nao ficar aparecendo/sumindo
+     (tremor) quando o conteudo fica no limite de max-height. */
+  scrollbar-gutter: stable;
   padding-right: 4px;
 }
 
