@@ -124,6 +124,7 @@ let selectedAdminDay = "all";
 let selectedAdminMatch = "";
 let selectedAdminPredictDay = "all";
 let selectedAdminPredictMatch = "";
+let lastAdminPredictKey = null;
 let selectedLogDay = "";
 let selectedLogMatch = "all";
 let isAdmin = sessionStorage.getItem("bolao-admin") === "true";
@@ -574,7 +575,20 @@ function fillAdminManualPointsForm(participantId) {
   adminManualPointsInput.value = participant?.manual_bonus_points ?? 0;
 }
 
-function fillAdminPredictForm(participantId, matchId) {
+function fillAdminPredictForm(participantId, matchId, { force = false } = {}) {
+  const key = `${participantId}::${matchId}`;
+  const editingScore =
+    document.activeElement === adminPredictHomeScore ||
+    document.activeElement === adminPredictAwayScore;
+  // Nao sobrescrever o que o admin esta digitando: quando o render automatico
+  // (realtime/sync) roda sem mudar participante+jogo, ou quando um campo de
+  // placar esta em foco, preserva os valores atuais. So preenche em troca real
+  // de selecao (force) ou quando a combinacao participante+jogo muda.
+  if (!force && (key === lastAdminPredictKey || editingScore)) {
+    lastAdminPredictKey = key;
+    return;
+  }
+  lastAdminPredictKey = key;
   const existingPrediction = predictions.find(
     (prediction) => prediction.participant_id === participantId && prediction.match_id === matchId
   );
@@ -2746,12 +2760,12 @@ adminPredictStageSelect.addEventListener("change", () => {
 
 adminPredictMatchSelect.addEventListener("change", () => {
   selectedAdminPredictMatch = adminPredictMatchSelect.value;
-  fillAdminPredictForm(adminPredictParticipantSelect.value, adminPredictMatchSelect.value);
+  fillAdminPredictForm(adminPredictParticipantSelect.value, adminPredictMatchSelect.value, { force: true });
   adminPredictMessage.textContent = "";
 });
 
 adminPredictParticipantSelect.addEventListener("change", () => {
-  fillAdminPredictForm(adminPredictParticipantSelect.value, adminPredictMatchSelect.value);
+  fillAdminPredictForm(adminPredictParticipantSelect.value, adminPredictMatchSelect.value, { force: true });
   adminPredictMessage.textContent = "";
 });
 
