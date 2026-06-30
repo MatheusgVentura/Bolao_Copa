@@ -1345,7 +1345,8 @@ td {
 }
 
 .ranking-item:hover {
-  transform: translateY(-2px);
+  /* Sem translateY: mover o card no hover faz o cursor sair/entrar da area
+     dele em loop, causando tremor ao rolar. A sombra ja da o destaque. */
   box-shadow: 0 14px 28px rgba(15, 32, 27, 0.1);
 }
 
@@ -1642,7 +1643,8 @@ td {
 }
 
 .match-card:hover {
-  transform: translateY(-2px);
+  /* Sem translateY: mover o card no hover faz o cursor sair/entrar da area
+     dele em loop, causando tremor ao rolar. A sombra ja da o destaque. */
   box-shadow: 0 16px 32px rgba(15, 32, 27, 0.1);
 }
 
