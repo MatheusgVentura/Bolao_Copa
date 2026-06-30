@@ -1223,6 +1223,10 @@ function renderDayMatchesPreview() {
 }
 
 function renderRanking() {
+  // A caixa do ranking tem scroll proprio (max-height + overflow). Limpar o
+  // innerHTML zera o scrollTop, entao toda atualizacao em tempo real jogava o
+  // usuario de volta pro topo. Salvamos e restauramos a posicao.
+  const previousScrollTop = rankingTable.scrollTop;
   rankingTable.innerHTML = "";
 
   calculateRanking().forEach((participant, index) => {
@@ -1254,6 +1258,7 @@ function renderRanking() {
   });
 
   rankingEmpty.style.display = participants.length ? "none" : "block";
+  rankingTable.scrollTop = previousScrollTop;
 }
 
 function renderMatches() {
