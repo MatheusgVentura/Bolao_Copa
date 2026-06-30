@@ -36,6 +36,11 @@
 
 html {
   scroll-behavior: smooth;
+  /* Reserva sempre o espaco da barra de rolagem para evitar o loop de
+     scrollbar aparecendo/sumindo (pagina "tremendo") quando a altura do
+     conteudo fica no limite exato da janela. */
+  scrollbar-gutter: stable;
+  overflow-y: scroll;
 }
 
 html:focus-within {
