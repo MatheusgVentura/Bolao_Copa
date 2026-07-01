@@ -1576,6 +1576,10 @@ td {
   display: grid;
   grid-template-columns: repeat(2, minmax(300px, 1fr));
   gap: 14px;
+  /* Cada card fica so com a altura do proprio conteudo, em vez de esticar para
+     igualar a altura do card ao lado (que deixava um espaco vazio embaixo do
+     ultimo palpite no card com menos gente). */
+  align-items: start;
 }
 
 .team-search-row {
