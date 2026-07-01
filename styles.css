@@ -1766,8 +1766,6 @@ td {
 .mini-table {
   display: grid;
   gap: 7px;
-  max-height: 190px;
-  overflow: auto;
 }
 
 .mini-table div {
@@ -2252,9 +2250,6 @@ td {
 
   .matches-list {
     grid-template-columns: 1fr;
-    max-height: 620px;
-    overflow: auto;
-    padding-right: 3px;
   }
 
   .ranking-list {
@@ -2292,10 +2287,6 @@ td {
   .admin-tools,
   .mini-table div {
     grid-template-columns: 1fr;
-  }
-
-  .mini-table {
-    max-height: 240px;
   }
 
   .mini-action,
