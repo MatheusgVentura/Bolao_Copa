@@ -246,5 +246,9 @@ end $$;
 alter table public.matches add column if not exists is_knockout boolean not null default false;
 alter table public.matches add column if not exists knockout_winner text check (char_length(knockout_winner) <= 40);
 
+-- Placar travado manualmente: quando true, a sincronizacao automatica nao sobrescreve
+-- home_score/away_score (usado quando a fonte oficial informa um placar errado).
+alter table public.matches add column if not exists result_locked boolean not null default false;
+
 -- Funcionalidade "Quem passa" removida: descarta a tabela e todos os palpites dela.
 drop table if exists public.passage_predictions cascade;

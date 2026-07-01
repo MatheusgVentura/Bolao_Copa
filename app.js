@@ -1038,6 +1038,11 @@ function updateKnockoutAdminFields() {
   const winnerRow = document.querySelector("#knockoutWinnerRow");
   const isKnockoutCheck = document.querySelector("#isKnockoutCheck");
   const winnerSelect = document.querySelector("#knockoutWinnerSelect");
+  const lockRow = document.querySelector("#resultLockRow");
+  const lockCheck = document.querySelector("#resultLockCheck");
+
+  if (lockRow) lockRow.classList.toggle("hidden", !match);
+  if (lockCheck) lockCheck.checked = Boolean(match?.result_locked);
 
   if (!fields) return;
 
@@ -2040,6 +2045,25 @@ async function syncMatchesFromOfficial() {
     );
   }
 
+  // Jogos com placar travado (result_locked) nunca tem o placar sobrescrito pela fonte
+  // oficial — preservamos o valor atual do banco (inclusive null). Consultado apos as
+  // migracoes de source_id acima para casar pelo source_id ja atualizado.
+  const { data: lockedRows } = await supabaseClient
+    .from("matches")
+    .select("source_id, home_score, away_score")
+    .eq("result_locked", true)
+    .throwOnError();
+  const lockedBySourceId = new Map(
+    (lockedRows || []).filter((m) => m.source_id).map((m) => [m.source_id, m])
+  );
+  officialMatches.forEach((om) => {
+    const locked = lockedBySourceId.get(om.source_id);
+    if (locked) {
+      om.home_score = locked.home_score;
+      om.away_score = locked.away_score;
+    }
+  });
+
   await supabaseClient
     .from("matches")
     .upsert(officialMatches, { onConflict: "source_id" })
@@ -2355,7 +2379,8 @@ resultForm.addEventListener("submit", async (event) => {
 
     const payload = {
       home_score: numberValue("#resultHomeScore"),
-      away_score: numberValue("#resultAwayScore")
+      away_score: numberValue("#resultAwayScore"),
+      result_locked: Boolean(document.querySelector("#resultLockCheck")?.checked)
     };
 
     if (!knockoutFieldsHidden) {
