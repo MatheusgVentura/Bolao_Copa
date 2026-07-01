@@ -859,8 +859,13 @@ h3 {
   transition: transform 0.15s ease, box-shadow 0.15s ease, outline 0.1s;
 }
 
-.dmp-match-btn:hover {
-  transform: translateY(-1px);
+/* :not(:disabled) eleva a especificidade acima da regra global
+   button:hover:not(:disabled) { transform: translateY(-1px) }, senao ela
+   venceria e o card (que e um <button>) continuaria subindo no hover. Sem
+   translateY: mover o card faz o cursor sair/entrar da area dele em loop,
+   causando o tremor. So a sombra destaca, igual .match-card/.ranking-item. */
+.dmp-match-btn:hover:not(:disabled) {
+  transform: none;
   box-shadow: 0 14px 28px rgba(15, 32, 27, 0.09);
 }
 

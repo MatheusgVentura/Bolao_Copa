@@ -1225,7 +1225,7 @@ function renderDayMatchesPreview() {
 function renderRanking() {
   // A caixa do ranking tem scroll proprio (max-height + overflow). Limpar o
   // innerHTML zera o scrollTop, entao toda atualizacao em tempo real jogava o
-  // usuario de volta pro topo. Salvamos e restauramos a posicao.
+  // usuario de volta pro topo da lista. Salvamos e restauramos a posicao.
   const previousScrollTop = rankingTable.scrollTop;
   rankingTable.innerHTML = "";
 
@@ -1262,6 +1262,17 @@ function renderRanking() {
 }
 
 function renderMatches() {
+  // Cada jogo mostra a lista de palpites numa .mini-table com scroll proprio.
+  // O innerHTML = "" abaixo recria os cards e zeraria esse scroll, jogando o
+  // usuario pro topo da lista de palpites a cada atualizacao em tempo real
+  // (ex.: durante um jogo ao vivo). Guardamos o scroll por jogo e restauramos
+  // apos reconstruir. Diferente do ranking, a .mini-table nao tem imagens
+  // async, entao a altura e estavel e reler/restaurar do DOM e confiavel.
+  const miniTableScroll = new Map();
+  matchesList.querySelectorAll(".mini-table[data-match-id]").forEach((el) => {
+    if (el.scrollTop) miniTableScroll.set(el.dataset.matchId, el.scrollTop);
+  });
+
   matchesList.innerHTML = "";
   groupTabs.innerHTML = "";
 
@@ -1369,11 +1380,18 @@ function renderMatches() {
         </div>
         <button class="danger admin-action" type="button" data-remove-match="${match.id}" aria-label="Remover jogo ${escapedMatchLabelForAttribute}">Remover</button>
       </div>
-      <div class="mini-table" aria-label="Palpites de ${escapedMatchLabelForAttribute}">
+      <div class="mini-table" data-match-id="${match.id}" aria-label="Palpites de ${escapedMatchLabelForAttribute}">
         ${predictionsContent}
       </div>
     `;
     matchesList.appendChild(card);
+  });
+
+  // Restaura o scroll de cada lista de palpites para o jogo continuar na
+  // posicao em que o usuario estava lendo.
+  miniTableScroll.forEach((top, matchId) => {
+    const el = matchesList.querySelector(`.mini-table[data-match-id="${CSS.escape(matchId)}"]`);
+    if (el) el.scrollTop = top;
   });
 
   matchesEmpty.style.display = matches.length ? "none" : "block";
@@ -1822,15 +1840,6 @@ function scheduleNextKickoffRender() {
 }
 
 function render() {
-  // renderMatches/renderRanking limpam o innerHTML e reconstroem tudo. Por um
-  // instante a pagina fica curta e o navegador "gruda" o scroll no topo (clamp).
-  // Como render() roda em sync de resultados/realtime (varias vezes durante um
-  // jogo ao vivo), isso jogava o usuario pro topo no meio da leitura dos
-  // palpites. Guardamos a posicao antes e restauramos depois, ainda no mesmo
-  // ciclo sincrono (antes do navegador repintar).
-  const previousScrollX = window.scrollX;
-  const previousScrollY = window.scrollY;
-
   const paidCount = participants.filter((participant) => participant.paid).length;
   totalParticipants.textContent = participants.length;
   totalMatches.textContent = matches.length;
@@ -1848,10 +1857,6 @@ function render() {
   updateKnockoutAdminFields();
   renderCountdownBanner();
   scheduleNextKickoffRender();
-
-  // behavior "instant" para ignorar o scroll-behavior: smooth do CSS e
-  // reposicionar sem animacao perceptivel.
-  window.scrollTo({ left: previousScrollX, top: previousScrollY, behavior: "instant" });
 }
 
 async function loadAll() {
