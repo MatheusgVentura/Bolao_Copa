@@ -1032,6 +1032,8 @@ function renderSelects() {
   updateKnockoutAdminFields();
 }
 
+let lastReflectedResultMatchId = null;
+
 function updateKnockoutAdminFields() {
   const match = matches.find((m) => m.id === resultMatchSelect.value);
   const fields = document.querySelector("#knockoutAdminFields");
@@ -1041,17 +1043,22 @@ function updateKnockoutAdminFields() {
   const lockRow = document.querySelector("#resultLockRow");
   const lockCheck = document.querySelector("#resultLockCheck");
 
+  // Visibilidade sempre acompanha a existencia de um jogo selecionado.
   if (lockRow) lockRow.classList.toggle("hidden", !match);
-  if (lockCheck) lockCheck.checked = Boolean(match?.result_locked);
-
-  if (!fields) return;
-
-  if (!match) {
-    fields.classList.add("hidden");
+  if (fields) fields.classList.toggle("hidden", !match);
+  if (!fields || !match) {
+    lastReflectedResultMatchId = match ? match.id : null;
     return;
   }
 
-  fields.classList.remove("hidden");
+  // So sincroniza os campos interativos com o banco quando o jogo selecionado muda.
+  // Em re-renders (loadAll disparado por realtime/sync) preservamos edicoes em andamento
+  // para nao desmarcar o checkbox/campos antes do admin salvar.
+  if (match.id === lastReflectedResultMatchId) return;
+  lastReflectedResultMatchId = match.id;
+
+  if (lockCheck) lockCheck.checked = Boolean(match.result_locked);
+
   if (isKnockoutCheck) isKnockoutCheck.checked = Boolean(match.is_knockout);
 
   if (winnerRow) winnerRow.classList.toggle("hidden", !match.is_knockout);
