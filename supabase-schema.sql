@@ -250,5 +250,28 @@ alter table public.matches add column if not exists knockout_winner text check (
 -- home_score/away_score (usado quando a fonte oficial informa um placar errado).
 alter table public.matches add column if not exists result_locked boolean not null default false;
 
+-- Trava aplicada no proprio banco: clientes com app.js antigo (PWA/aba aberta ha dias)
+-- rodam o sync sem a protecao client-side e sobrescreviam o placar travado a cada 5 min.
+-- O trigger preserva o placar de qualquer update que nao esteja destravando o jogo;
+-- para o admin editar o placar de um jogo travado, o app destrava e regrava (app.js).
+create or replace function public.protect_locked_match_result()
+returns trigger
+language plpgsql
+as $$
+begin
+  if old.result_locked and new.result_locked then
+    new.home_score := old.home_score;
+    new.away_score := old.away_score;
+  end if;
+  return new;
+end;
+$$;
+
+drop trigger if exists trg_protect_locked_match_result on public.matches;
+create trigger trg_protect_locked_match_result
+  before update on public.matches
+  for each row
+  execute function public.protect_locked_match_result();
+
 -- Funcionalidade "Quem passa" removida: descarta a tabela e todos os palpites dela.
 drop table if exists public.passage_predictions cascade;

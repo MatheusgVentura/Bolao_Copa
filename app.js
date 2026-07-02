@@ -2641,6 +2641,16 @@ resultForm.addEventListener("submit", async (event) => {
       payload.knockout_winner = (isKnockoutCheck?.checked && winnerSelect?.value) ? winnerSelect.value : null;
     }
 
+    // O trigger do banco (protect_locked_match_result) ignora mudanca de placar
+    // enquanto o jogo esta travado — destrava primeiro para o novo placar entrar.
+    if (payload.result_locked) {
+      await supabaseClient
+        .from("matches")
+        .update({ result_locked: false })
+        .eq("id", resultMatchSelect.value)
+        .throwOnError();
+    }
+
     await supabaseClient
       .from("matches")
       .update(payload)
@@ -2672,7 +2682,9 @@ clearResultButton.addEventListener("click", async () => {
       .from("matches")
       .update({
         home_score: null,
-        away_score: null
+        away_score: null,
+        // Solta a trava tambem — senao o trigger do banco preservaria o placar antigo.
+        result_locked: false
       })
       .eq("id", resultMatchSelect.value)
       .throwOnError();
