@@ -1617,6 +1617,15 @@ td {
   white-space: nowrap;
 }
 
+/* :not(:disabled) sobe a especificidade acima da regra global
+   button:hover:not(:disabled) { transform: translateY(-1px) }. Sem isso o
+   chip de dia sobe no hover, o cursor sai/entra da area dele em loop e a
+   caixa do dia treme — mesmo bug ja corrigido no .dmp-match-btn e no
+   .bracket-card. */
+.group-tabs button:hover:not(:disabled) {
+  transform: none;
+}
+
 .group-tabs button .open-dot {
   position: absolute;
   top: -3px;

@@ -1507,6 +1507,9 @@ function renderMatches() {
   matchesRenderPending = false;
 
   matchesList.innerHTML = "";
+  // O rebuild zera o scroll horizontal da barra de dias, fazendo ela pular
+  // de volta pro comeco a cada realtime/sync — preservamos a posicao.
+  const groupTabsScroll = groupTabs.scrollLeft;
   groupTabs.innerHTML = "";
 
   const days = orderedMatchDays();
@@ -1539,6 +1542,7 @@ function renderMatches() {
       }
       groupTabs.appendChild(button);
     });
+    groupTabs.scrollLeft = groupTabsScroll;
   }
 
   const visibleMatches = isSearching
