@@ -2207,8 +2207,12 @@ function normalizeOfficialMatches(payload) {
         venue: venue ? String(venue).slice(0, 80) : null
       };
 
-      const homeScore = item.home_score ?? item.score1 ?? item.score?.ft?.[0] ?? item.goals?.home;
-      const awayScore = item.away_score ?? item.score2 ?? item.score?.ft?.[1] ?? item.goals?.away;
+      // Mata-mata pode ir pra prorrogacao: "et" e o placar final do jogo e "ft" so os 90
+      // minutos, entao "et" tem prioridade. Penaltis (shootout) nao entram no placar.
+      const homeScore =
+        item.home_score ?? item.score1 ?? item.score?.et?.[0] ?? item.score?.ft?.[0] ?? item.goals?.home;
+      const awayScore =
+        item.away_score ?? item.score2 ?? item.score?.et?.[1] ?? item.score?.ft?.[1] ?? item.goals?.away;
 
       if (Number.isInteger(Number(homeScore)) && Number.isInteger(Number(awayScore))) {
         normalized.home_score = Number(homeScore);
