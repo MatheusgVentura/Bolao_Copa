@@ -136,6 +136,10 @@ let resultSyncInProgress = false;
 let preferredParticipantId = localStorage.getItem("bolao-participant-id") || "";
 let hasLoadedMatchesOnce = false;
 let deferredInstallPrompt = null;
+// Placar digitado no simulador ao vivo, por jogo. Guardado fora do DOM para
+// sobreviver aos re-renders disparados por realtime/sync.
+const simScores = new Map();
+let matchesRenderPending = false;
 const NOTIFIED_MATCHES_KEY = "bolao-notified-matches";
 const TOAST_DURATION_MS = 8000;
 
@@ -183,7 +187,83 @@ const BRACKET_COLS = [
 const BRACKET_THIRD_PLACE = "J103";
 
 function money(value) {
-  return value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+  // Sem centavos: os valores sao sempre multiplos de R$100 e "R$ 1.000,00"
+  // estoura a largura do card de premio no hero.
+  return value.toLocaleString("pt-BR", {
+    style: "currency",
+    currency: "BRL",
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0,
+  });
+}
+
+// Nome da selecao (normalizado: minusculo, sem acento) -> codigo do flagcdn.
+// Cobre os nomes em ingles da fonte oficial (openfootball) e variantes em
+// portugues usadas em jogos cadastrados manualmente.
+const TEAM_FLAG_CODES = {
+  // CONMEBOL
+  "argentina": "ar", "brazil": "br", "brasil": "br", "bolivia": "bo",
+  "chile": "cl", "colombia": "co", "ecuador": "ec", "equador": "ec",
+  "paraguay": "py", "paraguai": "py", "peru": "pe",
+  "uruguay": "uy", "uruguai": "uy", "venezuela": "ve",
+  // CONCACAF
+  "canada": "ca", "mexico": "mx", "usa": "us", "united states": "us",
+  "estados unidos": "us", "costa rica": "cr", "curacao": "cw", "haiti": "ht",
+  "honduras": "hn", "jamaica": "jm", "panama": "pa", "el salvador": "sv",
+  "guatemala": "gt", "trinidad and tobago": "tt", "suriname": "sr",
+  // UEFA
+  "albania": "al", "austria": "at", "belgium": "be", "belgica": "be",
+  "bosnia & herzegovina": "ba", "bosnia and herzegovina": "ba", "bosnia": "ba",
+  "bosnia e herzegovina": "ba", "croatia": "hr", "croacia": "hr",
+  "czech republic": "cz", "czechia": "cz", "republica tcheca": "cz", "tchequia": "cz",
+  "denmark": "dk", "dinamarca": "dk", "england": "gb-eng", "inglaterra": "gb-eng",
+  "finland": "fi", "finlandia": "fi", "france": "fr", "franca": "fr",
+  "georgia": "ge", "germany": "de", "alemanha": "de", "greece": "gr", "grecia": "gr",
+  "hungary": "hu", "hungria": "hu", "iceland": "is", "islandia": "is",
+  "italy": "it", "italia": "it", "kosovo": "xk", "moldova": "md", "montenegro": "me",
+  "netherlands": "nl", "holanda": "nl", "paises baixos": "nl",
+  "north macedonia": "mk", "macedonia do norte": "mk",
+  "northern ireland": "gb-nir", "irlanda do norte": "gb-nir",
+  "norway": "no", "noruega": "no", "poland": "pl", "polonia": "pl", "portugal": "pt",
+  "republic of ireland": "ie", "ireland": "ie", "irlanda": "ie",
+  "romania": "ro", "romenia": "ro", "russia": "ru",
+  "scotland": "gb-sct", "escocia": "gb-sct", "serbia": "rs", "servia": "rs",
+  "slovakia": "sk", "eslovaquia": "sk", "slovenia": "si", "eslovenia": "si",
+  "spain": "es", "espanha": "es", "sweden": "se", "suecia": "se",
+  "switzerland": "ch", "suica": "ch", "turkey": "tr", "turkiye": "tr", "turquia": "tr",
+  "ukraine": "ua", "ucrania": "ua", "wales": "gb-wls", "pais de gales": "gb-wls",
+  "belarus": "by", "israel": "il", "bulgaria": "bg", "estonia": "ee",
+  "latvia": "lv", "lithuania": "lt", "luxembourg": "lu", "cyprus": "cy", "malta": "mt",
+  // CAF
+  "algeria": "dz", "argelia": "dz", "cape verde": "cv", "cabo verde": "cv",
+  "cameroon": "cm", "camaroes": "cm", "dr congo": "cd", "congo dr": "cd", "rd congo": "cd",
+  "egypt": "eg", "egito": "eg", "ghana": "gh", "gana": "gh",
+  "ivory coast": "ci", "cote d'ivoire": "ci", "costa do marfim": "ci",
+  "morocco": "ma", "marrocos": "ma", "nigeria": "ng", "senegal": "sn",
+  "south africa": "za", "africa do sul": "za", "tunisia": "tn",
+  "mali": "ml", "burkina faso": "bf",
+  // AFC
+  "australia": "au", "iran": "ir", "ira": "ir", "japan": "jp", "japao": "jp",
+  "jordan": "jo", "jordania": "jo", "south korea": "kr", "korea republic": "kr",
+  "coreia do sul": "kr", "qatar": "qa", "catar": "qa",
+  "saudi arabia": "sa", "arabia saudita": "sa", "uzbekistan": "uz", "uzbequistao": "uz",
+  "iraq": "iq", "iraque": "iq", "uae": "ae", "united arab emirates": "ae",
+  "emirados arabes unidos": "ae", "bahrain": "bh", "barein": "bh",
+  "china": "cn", "china pr": "cn", "indonesia": "id",
+  // OFC
+  "new zealand": "nz", "nova zelandia": "nz", "new caledonia": "nc"
+};
+
+function teamFlagHtml(teamName, className = "team-flag") {
+  if (isPlaceholderTeam(teamName)) return "";
+  const code = TEAM_FLAG_CODES[normalizeText(teamName)];
+  if (!code) return "";
+  return `<img class="${className}" src="https://flagcdn.com/w40/${code}.png" srcset="https://flagcdn.com/w80/${code}.png 2x" alt="" aria-hidden="true" loading="lazy" onerror="this.remove()">`;
+}
+
+function teamWithFlag(teamName, className) {
+  const flag = teamFlagHtml(teamName, className);
+  return `${flag}${flag ? " " : ""}${escapeHtml(teamName)}`;
 }
 
 function getParticipantPhoto(name) {
@@ -1107,8 +1187,8 @@ function updatePredictionContext() {
 
   predictionHomeScore.setAttribute("aria-label", `Gols de ${match.home_team} no palpite`);
   predictionAwayScore.setAttribute("aria-label", `Gols de ${match.away_team} no palpite`);
-  predictionHomeTeamName.textContent = match.home_team;
-  predictionAwayTeamName.textContent = match.away_team;
+  predictionHomeTeamName.innerHTML = teamWithFlag(match.home_team, "team-flag form-flag");
+  predictionAwayTeamName.innerHTML = teamWithFlag(match.away_team, "team-flag form-flag");
   quickScores.classList.remove("hidden");
   predictionMessage.className = "hint";
   predictionMessage.textContent = "";
@@ -1120,13 +1200,13 @@ function updatePredictionContext() {
   const scoreVisible = canShowMatchPredictions(match);
 
   if (existing && scoreVisible) {
-    selectedMatchSummary.innerHTML = `<span class="existing-label">Palpite salvo</span><strong class="existing-score">${escapeHtml(match.home_team)} ${existing.home_score} × ${existing.away_score} ${escapeHtml(match.away_team)}</strong>`;
+    selectedMatchSummary.innerHTML = `<span class="existing-label">Palpite salvo</span><strong class="existing-score">${teamWithFlag(match.home_team)} ${existing.home_score} × ${existing.away_score} ${teamWithFlag(match.away_team)}</strong>`;
     selectedMatchSummary.className = "selected-match has-prediction";
   } else if (existing) {
-    selectedMatchSummary.innerHTML = `<span class="existing-label">Palpite salvo</span><span>${escapeHtml(match.home_team)} x ${escapeHtml(match.away_team)}</span>`;
+    selectedMatchSummary.innerHTML = `<span class="existing-label">Palpite salvo</span><span>${teamWithFlag(match.home_team)} x ${teamWithFlag(match.away_team)}</span>`;
     selectedMatchSummary.className = "selected-match has-prediction";
   } else {
-    selectedMatchSummary.innerHTML = `<span>${escapeHtml(match.home_team)} x ${escapeHtml(match.away_team)}</span>`;
+    selectedMatchSummary.innerHTML = `<span>${teamWithFlag(match.home_team)} x ${teamWithFlag(match.away_team)}</span>`;
     selectedMatchSummary.className = "selected-match";
   }
 
@@ -1211,7 +1291,7 @@ function renderDayMatchesPreview() {
     return `<button type="button" class="match-card dmp-match-btn${isSelected ? " dmp-selected" : ""}" data-dmp-match="${match.id}">
       <div class="match-top">
         <div>
-          <strong>${escapeHtml(match.home_team)} × ${escapeHtml(match.away_team)}</strong>
+          <strong>${teamWithFlag(match.home_team)} × ${teamWithFlag(match.away_team)}</strong>
           <span>${escapeHtml(meta)}</span>
         </div>
         <div class="match-result ${statusClass}">
@@ -1273,7 +1353,159 @@ function renderRanking() {
   rankingTable.scrollTop = previousScrollTop;
 }
 
+function buildConsensusHtml(match, matchPredictions) {
+  const total = matchPredictions.length;
+  let homeWins = 0;
+  let draws = 0;
+  let awayWins = 0;
+  const scoreCounts = new Map();
+
+  matchPredictions.forEach((prediction) => {
+    const result = gameResult(prediction.home_score, prediction.away_score);
+    if (result === "home") homeWins += 1;
+    else if (result === "away") awayWins += 1;
+    else draws += 1;
+
+    const scoreKey = `${prediction.home_score} × ${prediction.away_score}`;
+    scoreCounts.set(scoreKey, (scoreCounts.get(scoreKey) || 0) + 1);
+  });
+
+  const [topScore, topCount] = [...scoreCounts.entries()].sort((a, b) => b[1] - a[1])[0];
+  const percent = (value) => Math.round((value / total) * 100);
+  const segments = [
+    { className: "consensus-home", value: homeWins, label: match.home_team },
+    { className: "consensus-draw", value: draws, label: "Empate" },
+    { className: "consensus-away", value: awayWins, label: match.away_team }
+  ];
+
+  const bar = segments
+    .filter((segment) => segment.value > 0)
+    .map((segment) => `<span class="${segment.className}" style="flex-grow:${segment.value}"></span>`)
+    .join("");
+  const legend = segments
+    .map((segment) => `<span class="consensus-item"><i class="consensus-dot ${segment.className}" aria-hidden="true"></i>${escapeHtml(segment.label)} <strong>${percent(segment.value)}%</strong></span>`)
+    .join("");
+
+  return `
+    <div class="match-consensus" aria-label="Resumo dos palpites">
+      <div class="consensus-head">
+        <span class="consensus-title">Palpite da galera</span>
+        <span class="consensus-top">Mais apostado <strong>${escapeHtml(topScore)}</strong> · ${topCount}×</span>
+      </div>
+      <div class="consensus-bar" aria-hidden="true">${bar}</div>
+      <div class="consensus-legend">${legend}</div>
+    </div>
+  `;
+}
+
+function buildSimulatorHtml(match) {
+  const sim = simScores.get(match.id) || {};
+
+  return `
+    <div class="match-simulator" data-simulator="${match.id}">
+      <div class="sim-header">
+        <span class="sim-title">Simulador ao vivo</span>
+        <span class="sim-sub">Digite o placar do jogo e veja como fica o ranking.</span>
+      </div>
+      <div class="sim-score">
+        <div class="sim-team">
+          <span class="sim-team-name">${teamWithFlag(match.home_team, "team-flag form-flag")}</span>
+          <input type="number" min="0" max="30" inputmode="numeric" class="sim-input" data-sim-home value="${sim.home ?? ""}" aria-label="Gols de ${escapeHtml(match.home_team)} na simulacao">
+        </div>
+        <span class="sim-x" aria-hidden="true">×</span>
+        <div class="sim-team">
+          <span class="sim-team-name">${teamWithFlag(match.away_team, "team-flag form-flag")}</span>
+          <input type="number" min="0" max="30" inputmode="numeric" class="sim-input" data-sim-away value="${sim.away ?? ""}" aria-label="Gols de ${escapeHtml(match.away_team)} na simulacao">
+        </div>
+      </div>
+      <div class="sim-ranking" data-sim-result aria-live="polite"></div>
+    </div>
+  `;
+}
+
+function updateSimulatorResult(simulatorEl) {
+  const match = matches.find((item) => item.id === simulatorEl.dataset.simulator);
+  const resultEl = simulatorEl.querySelector("[data-sim-result]");
+  const homeRaw = simulatorEl.querySelector("[data-sim-home]").value;
+  const awayRaw = simulatorEl.querySelector("[data-sim-away]").value;
+  const simHome = Number(homeRaw);
+  const simAway = Number(awayRaw);
+
+  const valid =
+    match && homeRaw !== "" && awayRaw !== "" &&
+    Number.isInteger(simHome) && Number.isInteger(simAway) &&
+    simHome >= 0 && simAway >= 0;
+
+  if (!valid) {
+    // Nao colapsar o ranking no meio da digitacao (ex.: apagar um numero para
+    // corrigir). O sobe-e-desce da altura do card faz a pagina inteira tremer.
+    // So limpa quando os dois campos ficam vazios; senao mantem o resultado
+    // anterior esmaecido ate o placar voltar a ser valido.
+    if (homeRaw === "" && awayRaw === "") {
+      resultEl.innerHTML = "";
+      resultEl.classList.remove("sim-stale");
+    } else {
+      resultEl.classList.add("sim-stale");
+    }
+    return;
+  }
+  resultEl.classList.remove("sim-stale");
+
+  const currentRanking = calculateRanking();
+  const currentPosition = new Map(currentRanking.map((participant, index) => [participant.id, index + 1]));
+  const simulatedMatch = { ...match, home_score: simHome, away_score: simAway };
+
+  const projected = currentRanking
+    .map((participant) => {
+      const prediction = predictions.find(
+        (item) => item.participant_id === participant.id && item.match_id === match.id
+      );
+      const delta = prediction
+        ? automaticPointsFor(prediction, simulatedMatch) - pointsFor(prediction, match)
+        : 0;
+      return { ...participant, delta, projectedTotal: participant.total + delta };
+    })
+    .sort((a, b) => b.projectedTotal - a.projectedTotal || a.name.localeCompare(b.name));
+
+  const rows = projected.map((participant, index) => {
+    const movement = currentPosition.get(participant.id) - (index + 1);
+    const movementHtml = movement > 0
+      ? `<span class="sim-move up">▲${movement}</span>`
+      : movement < 0
+      ? `<span class="sim-move down">▼${Math.abs(movement)}</span>`
+      : `<span class="sim-move">–</span>`;
+    const deltaLabel = participant.delta > 0
+      ? `+${participant.delta}`
+      : participant.delta < 0
+      ? `${participant.delta}`
+      : "";
+
+    return `
+      <div class="sim-row${participant.id === preferredParticipantId ? " is-me" : ""}">
+        <span class="sim-pos">${index + 1}º</span>
+        <span class="sim-name">${escapeHtml(participant.name)}</span>
+        <span class="sim-delta${deltaLabel ? "" : " sim-delta-empty"}">${deltaLabel}</span>
+        <strong>${participant.projectedTotal}</strong>
+        ${movementHtml}
+      </div>
+    `;
+  }).join("");
+
+  resultEl.innerHTML = `<div class="sim-ranking-title">Ranking projetado</div>${rows}`;
+}
+
 function renderMatches() {
+  // Nao reconstruir a lista enquanto o usuario digita no simulador: o rebuild
+  // (disparado por realtime/sync) destruiria o input focado no meio da
+  // digitacao — perde o foco, fecha o teclado no celular e a pagina treme.
+  // O focusout do simulador aplica o render que ficou pendente.
+  const active = document.activeElement;
+  if (active && active.classList?.contains("sim-input") && matchesList.contains(active)) {
+    matchesRenderPending = true;
+    return;
+  }
+  matchesRenderPending = false;
+
   matchesList.innerHTML = "";
   groupTabs.innerHTML = "";
 
@@ -1320,7 +1552,6 @@ function renderMatches() {
 
   visibleMatches.forEach((match) => {
     const matchLabel = `${match.home_team} x ${match.away_team}`;
-    const escapedMatchLabel = escapeHtml(matchLabel);
     const escapedMatchLabelForAttribute = escapeHtml(matchLabel);
     const matchPredictions = predictions.filter((prediction) => prediction.match_id === match.id);
     const matchLiveState = hasOfficialResult(match)
@@ -1365,13 +1596,20 @@ function renderMatches() {
       }).join("")
       : "<p>Nenhum palpite nesse jogo ainda.</p>";
 
+    const consensusHtml = canShowPredictions && matchPredictions.length >= 2
+      ? buildConsensusHtml(match, matchPredictions)
+      : "";
+    const simulatorHtml = matchLiveState === "live" && canShowPredictions && matchPredictions.length
+      ? buildSimulatorHtml(match)
+      : "";
+
     const card = document.createElement("article");
     card.className = "match-card";
     card.setAttribute("aria-label", `${matchLabel}. ${predictionStatus}`);
     card.innerHTML = `
       <div class="match-top">
         <div>
-          <strong>${escapedMatchLabel}</strong>
+          <strong>${teamWithFlag(match.home_team)} × ${teamWithFlag(match.away_team)}</strong>
           <span>${escapeHtml(details)}</span>
           <span>${escapeHtml(predictionStatus)}</span>
         </div>
@@ -1381,12 +1619,16 @@ function renderMatches() {
         </div>
         <button class="danger admin-action" type="button" data-remove-match="${match.id}" aria-label="Remover jogo ${escapedMatchLabelForAttribute}">Remover</button>
       </div>
+      ${consensusHtml}
+      ${simulatorHtml}
       <div class="mini-table" aria-label="Palpites de ${escapedMatchLabelForAttribute}">
         ${predictionsContent}
       </div>
     `;
     matchesList.appendChild(card);
   });
+
+  matchesList.querySelectorAll("[data-simulator]").forEach(updateSimulatorResult);
 
   matchesEmpty.style.display = matches.length ? "none" : "block";
   if (matches.length && !visibleMatches.length) {
@@ -1475,11 +1717,11 @@ function createBracketCard(match, sourceId) {
 
   const homeTeamEl = document.createElement("span");
   homeTeamEl.className = `bc-team${homeWon ? " bc-team--winner" : ""}`;
-  homeTeamEl.innerHTML = `<span class="bc-name">${escapeHtml(match.home_team)}</span>${hasResult ? `<span class="bc-score">${match.home_score}</span>` : ""}`;
+  homeTeamEl.innerHTML = `<span class="bc-name">${teamFlagHtml(match.home_team, "team-flag bc-flag")}${escapeHtml(match.home_team)}</span>${hasResult ? `<span class="bc-score">${match.home_score}</span>` : ""}`;
 
   const awayTeamEl = document.createElement("span");
   awayTeamEl.className = `bc-team${awayWon ? " bc-team--winner" : ""}`;
-  awayTeamEl.innerHTML = `<span class="bc-name">${escapeHtml(match.away_team)}</span>${hasResult ? `<span class="bc-score">${match.away_score}</span>` : ""}`;
+  awayTeamEl.innerHTML = `<span class="bc-name">${teamFlagHtml(match.away_team, "team-flag bc-flag")}${escapeHtml(match.away_team)}</span>${hasResult ? `<span class="bc-score">${match.away_score}</span>` : ""}`;
 
   if (dateStr) {
     const dateEl = document.createElement("span");
@@ -1789,7 +2031,7 @@ function renderCountdownBanner() {
   }
 
   banner.classList.remove("hidden");
-  document.querySelector("#nextMatchTeams").textContent = `${match.home_team} x ${match.away_team}`;
+  document.querySelector("#nextMatchTeams").innerHTML = `${teamWithFlag(match.home_team)} × ${teamWithFlag(match.away_team)}`;
   const detail = [match.stage, formatMatchDate(match.kickoff_at)].filter(Boolean).join(" · ");
   document.querySelector("#nextMatchDetail").textContent = detail;
 
@@ -2705,6 +2947,30 @@ rankingTable.addEventListener("click", async (event) => {
     window.alert("Nao consegui remover o participante. Rode o supabase-schema.sql atualizado no Supabase e tente de novo.");
     console.error(error);
   }
+});
+
+matchesList.addEventListener("input", (event) => {
+  const input = event.target.closest(".sim-input");
+  if (!input) return;
+
+  const simulatorEl = input.closest("[data-simulator]");
+  simScores.set(simulatorEl.dataset.simulator, {
+    home: simulatorEl.querySelector("[data-sim-home]").value,
+    away: simulatorEl.querySelector("[data-sim-away]").value
+  });
+  updateSimulatorResult(simulatorEl);
+});
+
+matchesList.addEventListener("focusout", (event) => {
+  if (!event.target.classList?.contains("sim-input")) return;
+
+  // Espera o foco assentar: pular de um campo do simulador para o outro nao
+  // deve disparar o render pendente.
+  window.setTimeout(() => {
+    const active = document.activeElement;
+    const stillTyping = active && active.classList?.contains("sim-input") && matchesList.contains(active);
+    if (matchesRenderPending && !stillTyping) renderMatches();
+  }, 0);
 });
 
 groupTabs.addEventListener("click", (event) => {

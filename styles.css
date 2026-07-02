@@ -23,9 +23,11 @@
   --success-text: #116038;
   --info: #1d4d74;
   --info-soft: #e8f1f8;
-  --shadow: 0 24px 60px rgba(15, 32, 27, 0.12);
-  --shadow-tight: 0 14px 34px rgba(15, 32, 27, 0.08);
-  --radius: 8px;
+  --shadow: 0 20px 50px rgba(15, 32, 27, 0.1);
+  --shadow-tight: 0 10px 28px rgba(15, 32, 27, 0.06);
+  --radius: 12px;
+  --radius-sm: 8px;
+  --radius-lg: 18px;
   --mono: "Roboto Mono", "Cascadia Mono", "SFMono-Regular", Consolas, monospace;
   --body: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
 }
@@ -218,7 +220,7 @@ input {
 .page {
   width: min(1440px, calc(100% - 24px));
   margin: 0 auto;
-  padding: 24px 0 46px;
+  padding: 28px 0 56px;
 }
 
 .page:focus-visible {
@@ -229,7 +231,7 @@ input {
 .panel {
   background: rgba(255, 255, 255, 0.96);
   border: 1px solid rgba(219, 228, 223, 0.96);
-  border-radius: var(--radius);
+  border-radius: var(--radius-lg);
   box-shadow: var(--shadow-tight);
 }
 
@@ -291,7 +293,7 @@ input {
   font-family: var(--mono);
   font-size: 0.72rem;
   font-weight: 800;
-  letter-spacing: 0;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
 }
 
@@ -316,21 +318,24 @@ h1 {
 
 h2 {
   margin-bottom: 18px;
-  font-size: 1.05rem;
-  font-weight: 850;
+  font-size: 1.16rem;
+  font-weight: 800;
+  letter-spacing: -0.01em;
 }
 
 h3 {
   margin: 0 0 12px;
-  font-size: 0.95rem;
-  font-weight: 850;
+  font-size: 0.98rem;
+  font-weight: 800;
+  letter-spacing: -0.005em;
 }
 
 .summary {
   max-width: 670px;
   margin-bottom: 0;
-  color: rgba(255, 255, 255, 0.78);
+  color: rgba(255, 255, 255, 0.82);
   font-size: 1.04rem;
+  font-weight: 450;
   line-height: 1.65;
 }
 
@@ -393,11 +398,12 @@ h3 {
 .stats span {
   display: block;
   margin-bottom: 3px;
+  overflow-wrap: anywhere;
   color: #fff;
   font-family: var(--mono);
-  font-size: clamp(1.28rem, 2vw, 1.72rem);
+  font-size: clamp(1.14rem, 1.7vw, 1.5rem);
   font-weight: 900;
-  line-height: 1;
+  line-height: 1.15;
 }
 
 .stats small {
@@ -421,7 +427,7 @@ h3 {
   all: unset;
   cursor: pointer;
   font-size: 0.8rem;
-  font-weight: 750;
+  font-weight: 650;
   color: var(--muted);
   padding: 4px 8px;
   border-radius: 6px;
@@ -542,11 +548,11 @@ h3 {
   align-items: center;
   justify-content: center;
   min-height: 40px;
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
   padding: 0 14px;
   color: #294039;
   font-size: 0.86rem;
-  font-weight: 850;
+  font-weight: 700;
   text-decoration: none;
 }
 
@@ -569,7 +575,7 @@ h3 {
   margin-left: auto;
   color: var(--muted);
   font-size: 0.8rem;
-  font-weight: 750;
+  font-weight: 600;
 }
 
 .next-match-banner {
@@ -682,7 +688,7 @@ h3 {
   margin: 0;
   color: var(--muted);
   font-size: 0.9rem;
-  font-weight: 800;
+  font-weight: 650;
 }
 
 .status.ok {
@@ -733,7 +739,7 @@ h3 {
 
 .form-panel,
 .table-panel {
-  padding: 22px;
+  padding: 24px;
 }
 
 #highlightsPanel,
@@ -888,7 +894,7 @@ h3 {
   background: var(--primary-soft);
   color: var(--primary-dark);
   font-size: 0.88rem;
-  font-weight: 850;
+  font-weight: 700;
   line-height: 1.4;
   text-align: center;
 }
@@ -965,7 +971,7 @@ h3 {
   border: 1px solid rgba(8, 115, 78, 0.2);
   color: var(--primary-dark);
   font-size: 0.82rem;
-  font-weight: 800;
+  font-weight: 700;
 }
 
 .deadline-badge::before {
@@ -1053,7 +1059,7 @@ label {
   margin-bottom: 8px;
   color: #293d36;
   font-size: 0.82rem;
-  font-weight: 850;
+  font-weight: 650;
 }
 
 input,
@@ -1100,7 +1106,7 @@ a:focus-visible,
   gap: 10px;
   margin: 2px 0 16px;
   color: var(--text);
-  font-weight: 800;
+  font-weight: 600;
 }
 
 .checkbox input {
@@ -1116,7 +1122,7 @@ button {
   border-radius: var(--radius);
   padding: 0 16px;
   cursor: pointer;
-  font-weight: 800;
+  font-weight: 700;
   line-height: 1.1;
   transition: transform 0.16s ease, background 0.16s ease, border-color 0.16s ease, box-shadow 0.16s ease;
 }
@@ -1207,7 +1213,7 @@ button:disabled {
   margin: 10px 0 0;
   color: var(--primary-dark);
   font-size: 0.84rem;
-  font-weight: 800;
+  font-weight: 650;
   line-height: 1.35;
 }
 
@@ -1277,7 +1283,7 @@ th {
 }
 
 td {
-  font-weight: 750;
+  font-weight: 550;
 }
 
 .badge {
@@ -1287,7 +1293,7 @@ td {
   border-radius: 999px;
   padding: 0 9px;
   font-size: 0.76rem;
-  font-weight: 850;
+  font-weight: 700;
 }
 
 .badge.paid {
@@ -1401,7 +1407,7 @@ td {
   margin-top: 2px;
   color: var(--muted);
   font-size: 0.78rem;
-  font-weight: 750;
+  font-weight: 550;
 }
 
 .rank-score {
@@ -1532,7 +1538,7 @@ td {
   white-space: nowrap;
   color: var(--text);
   font-size: 0.78rem;
-  font-weight: 850;
+  font-weight: 700;
   text-align: center;
 }
 
@@ -1573,13 +1579,12 @@ td {
 }
 
 .matches-list {
+  /* Coluna unica: cards de largura total nunca desalinham entre si. Lado a
+     lado, listas de palpites com tamanhos diferentes deixavam as bordas e as
+     secoes internas desencontradas. */
   display: grid;
-  grid-template-columns: repeat(2, minmax(300px, 1fr));
+  grid-template-columns: 1fr;
   gap: 14px;
-  /* Cada card fica so com a altura do proprio conteudo, em vez de esticar para
-     igualar a altura do card ao lado (que deixava um espaco vazio embaixo do
-     ultimo palpite no card com menos gente). */
-  align-items: start;
 }
 
 .team-search-row {
@@ -1679,7 +1684,7 @@ td {
   margin-top: 4px;
   color: var(--muted);
   font-size: 0.82rem;
-  font-weight: 750;
+  font-weight: 550;
   line-height: 1.35;
 }
 
@@ -1768,8 +1773,11 @@ td {
 }
 
 .mini-table {
+  /* Com o card em largura total, os palpites fluem em colunas de ~300px para
+     cada linha nao esticar demais nem alongar a pagina. */
   display: grid;
-  gap: 7px;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 7px 28px;
 }
 
 .mini-table div {
@@ -1787,14 +1795,15 @@ td {
 }
 
 .mini-table p {
+  grid-column: 1 / -1;
   margin: 0;
   border: 1px dashed #cad8d1;
-  border-radius: var(--radius);
+  border-radius: var(--radius-sm);
   padding: 11px;
   background: rgba(255, 255, 255, 0.68);
   color: var(--muted);
   text-align: center;
-  font-weight: 800;
+  font-weight: 600;
 }
 
 .mini-table strong {
@@ -2026,7 +2035,7 @@ td {
   padding: 3px 9px;
   border-radius: 999px;
   font-size: 0.76rem;
-  font-weight: 800;
+  font-weight: 700;
   white-space: nowrap;
 }
 
@@ -2250,10 +2259,6 @@ td {
 
   .status {
     font-size: 0.84rem;
-  }
-
-  .matches-list {
-    grid-template-columns: 1fr;
   }
 
   .ranking-list {
@@ -2780,6 +2785,14 @@ td {
   box-shadow: 0 2px 6px rgba(0,0,0,0.07);
 }
 
+/* :not(:disabled) sobe a especificidade acima da regra global
+   button:hover:not(:disabled) { transform: translateY(-1px) }. Sem isso o
+   card (que e um <button>) sobe no hover, o cursor sai/entra da area dele em
+   loop e a chave inteira treme — mesmo bug ja corrigido no .dmp-match-btn. */
+button.bracket-card:hover:not(:disabled) {
+  transform: none;
+}
+
 button.bracket-card:hover,
 button.bracket-card:focus-visible {
   border-color: var(--primary);
@@ -2974,7 +2987,384 @@ button.bracket-card:focus-visible {
 [data-theme="dark"] .podium-value,
 [data-theme="dark"] .match-result.finished small,
 [data-theme="dark"] .match-result.finished strong,
+[data-theme="dark"] .score-team-name,
+[data-theme="dark"] .mini-table em,
+[data-theme="dark"] .status.ok,
+[data-theme="dark"] .rank-avatar::before,
+[data-theme="dark"] .bc-team--winner .bc-name,
+[data-theme="dark"] .bc-team--winner .bc-score,
 [data-theme="dark"] .hint {
   color: #6fe3ad;
+}
+
+/* ── Refinamentos do modo escuro ── */
+
+/* Os degrades claros do body (dourado/azul sobre fundo claro) ficam sujos
+   sobre o fundo escuro; versao propria com lavagens mais discretas. */
+[data-theme="dark"] body {
+  background:
+    linear-gradient(135deg, rgba(215, 154, 34, 0.06), transparent 30%),
+    linear-gradient(215deg, rgba(125, 184, 232, 0.05), transparent 34%),
+    linear-gradient(90deg, rgba(111, 227, 173, 0.03) 1px, transparent 1px) 0 0 / 32px 32px,
+    var(--bg);
+}
+
+/* O bloco generico acima pinta .deadline-badge de verde; as variantes de
+   urgencia/fechado precisam manter a cor semantica no escuro. */
+[data-theme="dark"] .deadline-badge.deadline-urgent {
+  color: var(--warning-text);
+}
+
+[data-theme="dark"] .deadline-badge.deadline-closed {
+  color: var(--danger);
+}
+
+/* #10251f praticamente some contra o card escuro; chip mais claro. */
+[data-theme="dark"] .rank-position {
+  background: #2c4038;
+}
+
+[data-theme="dark"] .ranking-item {
+  background:
+    linear-gradient(90deg, rgba(215, 154, 34, 0.09), transparent 56%),
+    var(--panel-soft);
+}
+
+/* Verde #08734e tem pouco contraste como outline sobre fundo escuro. */
+[data-theme="dark"] .ranking-item.is-me,
+[data-theme="dark"] .dmp-match-btn.dmp-selected {
+  outline-color: #2fb182;
+}
+
+[data-theme="dark"] .bracket-card--open,
+[data-theme="dark"] button.bracket-card:hover,
+[data-theme="dark"] button.bracket-card:focus-visible {
+  border-color: #2fb182;
+}
+
+/* ═══════════════ BANDEIRAS ═══════════════ */
+
+.team-flag {
+  display: inline-block;
+  width: 21px;
+  border-radius: 3px;
+  vertical-align: -2px;
+  box-shadow: 0 0 0 1px rgba(15, 32, 27, 0.14);
+}
+
+.bc-flag {
+  width: 14px;
+  margin-right: 5px;
+  border-radius: 2px;
+  vertical-align: -1px;
+}
+
+.form-flag {
+  width: 16px;
+  vertical-align: -3px;
+}
+
+.next-match-teams .team-flag {
+  width: 24px;
+  vertical-align: -3px;
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.25);
+}
+
+/* ═══════════════ PALPITE DA GALERA (consenso) ═══════════════ */
+
+.match-consensus {
+  margin-bottom: 12px;
+  border-radius: var(--radius-sm);
+  padding: 11px 12px;
+  background: rgba(8, 115, 78, 0.055);
+}
+
+.consensus-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 2px 12px;
+  margin-bottom: 9px;
+}
+
+.consensus-title {
+  color: var(--primary-dark);
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+}
+
+.consensus-bar {
+  display: flex;
+  gap: 3px;
+  height: 10px;
+  margin-bottom: 8px;
+}
+
+.consensus-bar span {
+  display: block;
+  height: 100%;
+  min-width: 10px;
+  border-radius: 999px;
+}
+
+.consensus-home {
+  background: var(--primary);
+}
+
+.consensus-draw {
+  background: #9aa7a1;
+}
+
+.consensus-away {
+  background: var(--gold);
+}
+
+.consensus-legend {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 12px;
+  color: var(--muted);
+  font-size: 0.76rem;
+  font-weight: 650;
+}
+
+.consensus-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-width: 0;
+}
+
+.consensus-dot {
+  flex: 0 0 auto;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+
+.consensus-item strong {
+  color: var(--text);
+  font-family: var(--mono);
+  font-weight: 800;
+}
+
+.consensus-top {
+  color: var(--muted);
+  font-size: 0.74rem;
+  font-weight: 650;
+}
+
+.consensus-top strong {
+  color: var(--text);
+  font-family: var(--mono);
+  font-size: 0.82rem;
+}
+
+/* ═══════════════ SIMULADOR AO VIVO ═══════════════ */
+
+.match-simulator {
+  margin-bottom: 12px;
+  border: 1px solid rgba(161, 40, 32, 0.18);
+  border-radius: var(--radius-sm);
+  padding: 12px;
+  background: rgba(161, 40, 32, 0.04);
+}
+
+.sim-header {
+  display: grid;
+  gap: 2px;
+  margin-bottom: 10px;
+}
+
+.sim-title {
+  color: var(--danger);
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.sim-title::before {
+  content: "";
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  margin-right: 5px;
+  border-radius: 50%;
+  background: var(--danger);
+  animation: live-pulse 1.4s ease-in-out infinite;
+  vertical-align: 1px;
+}
+
+.sim-sub {
+  color: var(--muted);
+  font-size: 0.76rem;
+  font-weight: 550;
+}
+
+.sim-score {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  gap: 10px;
+  align-items: end;
+  max-width: 340px;
+  margin: 0 auto 10px;
+}
+
+.sim-team {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.sim-team-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text);
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-align: center;
+}
+
+.sim-team input {
+  width: 100%;
+  min-height: 42px;
+  margin: 0;
+  text-align: center;
+  font-family: var(--mono);
+  font-size: 1.05rem;
+  font-weight: 900;
+}
+
+.sim-x {
+  padding-bottom: 12px;
+  color: var(--muted);
+  font-family: var(--mono);
+  font-weight: 900;
+}
+
+.sim-ranking {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 4px 28px;
+  transition: opacity 0.15s ease;
+}
+
+/* Placar incompleto no meio da digitacao: mantem o resultado anterior
+   esmaecido em vez de colapsar (evita o card mudar de altura e tremer). */
+.sim-ranking.sim-stale {
+  opacity: 0.4;
+}
+
+.sim-ranking-title {
+  grid-column: 1 / -1;
+  margin: 4px 0 3px;
+  color: var(--muted);
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+}
+
+.sim-row {
+  display: grid;
+  grid-template-columns: 26px minmax(0, 1fr) auto auto 36px;
+  gap: 8px;
+  align-items: center;
+  border-radius: 7px;
+  padding: 5px 9px;
+  background: rgba(255, 255, 255, 0.65);
+  font-size: 0.82rem;
+}
+
+.sim-row.is-me {
+  background: var(--primary-soft);
+  outline: 1.5px solid rgba(8, 115, 78, 0.35);
+  outline-offset: -1.5px;
+}
+
+.sim-pos {
+  color: var(--muted);
+  font-family: var(--mono);
+  font-size: 0.74rem;
+  font-weight: 800;
+}
+
+.sim-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 700;
+}
+
+.sim-delta {
+  justify-self: end;
+  border-radius: 999px;
+  padding: 1px 7px;
+  background: var(--success-soft);
+  color: var(--success-text);
+  font-family: var(--mono);
+  font-size: 0.7rem;
+  font-weight: 800;
+}
+
+.sim-delta-empty {
+  visibility: hidden;
+  padding: 1px 4px;
+}
+
+.sim-row strong {
+  justify-self: end;
+  font-family: var(--mono);
+}
+
+.sim-move {
+  justify-self: end;
+  color: var(--muted);
+  font-family: var(--mono);
+  font-size: 0.72rem;
+  font-weight: 800;
+}
+
+.sim-move.up {
+  color: var(--success-text);
+}
+
+.sim-move.down {
+  color: var(--danger);
+}
+
+[data-theme="dark"] .match-consensus {
+  background: rgba(255, 255, 255, 0.04);
+}
+
+[data-theme="dark"] .consensus-title {
+  color: #6fe3ad;
+}
+
+[data-theme="dark"] .consensus-home {
+  background: #1f9e6c;
+}
+
+[data-theme="dark"] .consensus-draw {
+  background: #5c6b65;
+}
+
+[data-theme="dark"] .match-simulator {
+  border-color: rgba(255, 154, 144, 0.22);
+  background: rgba(255, 154, 144, 0.05);
+}
+
+[data-theme="dark"] .sim-row {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+[data-theme="dark"] .team-flag {
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.16);
 }
 
