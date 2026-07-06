@@ -9,7 +9,7 @@ create table if not exists public.participants (
   runner_up_pick text check (char_length(runner_up_pick) <= 40),
   finalist_one_pick text check (char_length(finalist_one_pick) <= 40),
   finalist_two_pick text check (char_length(finalist_two_pick) <= 40),
-  manual_bonus_points integer check (manual_bonus_points >= 0 and manual_bonus_points <= 200),
+  manual_bonus_points integer check (manual_bonus_points >= -200 and manual_bonus_points <= 200),
   created_at timestamptz not null default now()
 );
 
@@ -18,7 +18,12 @@ alter table public.participants add column if not exists top_scorer_pick text ch
 alter table public.participants add column if not exists runner_up_pick text check (char_length(runner_up_pick) <= 40);
 alter table public.participants add column if not exists finalist_one_pick text check (char_length(finalist_one_pick) <= 40);
 alter table public.participants add column if not exists finalist_two_pick text check (char_length(finalist_two_pick) <= 40);
-alter table public.participants add column if not exists manual_bonus_points integer check (manual_bonus_points >= 0 and manual_bonus_points <= 200);
+alter table public.participants add column if not exists manual_bonus_points integer check (manual_bonus_points >= -200 and manual_bonus_points <= 200);
+
+-- Migracao: permitir pontos manuais negativos (descontar pontos) em bancos ja criados.
+alter table public.participants drop constraint if exists participants_manual_bonus_points_check;
+alter table public.participants add constraint participants_manual_bonus_points_check
+  check (manual_bonus_points >= -200 and manual_bonus_points <= 200);
 
 create unique index if not exists participants_unique_name_idx
 on public.participants (lower(btrim(name)));

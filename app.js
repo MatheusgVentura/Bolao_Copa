@@ -2823,8 +2823,8 @@ adminManualPointsForm.addEventListener("submit", async (event) => {
     return;
   }
 
-  if (!Number.isInteger(manualPoints) || manualPoints < 0 || manualPoints > 200) {
-    adminManualPointsMessage.textContent = "Informe um valor inteiro entre 0 e 200.";
+  if (!Number.isInteger(manualPoints) || manualPoints < -200 || manualPoints > 200) {
+    adminManualPointsMessage.textContent = "Informe um valor inteiro entre -200 e 200.";
     return;
   }
 

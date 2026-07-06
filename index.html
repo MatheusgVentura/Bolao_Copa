@@ -478,7 +478,7 @@
           <div class="admin-workspace-heading">
             <div>
               <h3>Pontos manuais</h3>
-              <p>Adicione um ajuste individual ao total de um participante.</p>
+              <p>Adicione ou remova pontos do total de um participante. Use valor negativo para descontar (ex.: -3) e 0 para zerar o ajuste.</p>
             </div>
           </div>
           <form class="admin-tools admin-manual-points" id="adminManualPointsForm">
@@ -488,7 +488,7 @@
             </div>
             <div>
               <label for="adminManualPointsInput">Pontos manuais</label>
-              <input id="adminManualPointsInput" type="number" min="0" max="200" step="1" value="0" required>
+              <input id="adminManualPointsInput" type="number" min="-200" max="200" step="1" value="0" required>
             </div>
             <button class="primary compact-save" type="submit">Salvar pontos</button>
             <p class="hint" id="adminManualPointsMessage" role="status" aria-live="polite"></p>
