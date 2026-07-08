@@ -138,3 +138,7 @@ O trigger `protect_locked_match_result` impede que a sincronização automática
 - Não há autenticação real de participantes: o app identifica o participante pelo nome selecionado (guardado em `localStorage`). A segurança do bolão depende de manter o link privado.
 - `ENTRY_VALUE` (valor da entrada, R$100) está fixo em `app.js`.
 - A sincronização automática de resultados roda a cada 5 minutos e respeita a trava de placar manual.
+
+## ⚠️ Aviso importante
+
+> **Este é um bolão privado entre amigos.** Não há autenticação de participantes — qualquer pessoa com o link consegue selecionar qualquer nome e palpitá-lo. **Não tente palpitar no lugar de outros participantes.** O painel admin audita todas as alterações (log de palpites com data/hora), e palpites suspeitos podem ser revertidos. O objetivo é diversão entre conhecidos, não competição desleal.
