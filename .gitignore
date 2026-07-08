@@ -1,8 +1,5 @@
 Senha_admin.txt
 
-# Credenciais reais do Supabase — nunca commitar
-supabase-config.js
-
 # Dependências
 node_modules/
 
