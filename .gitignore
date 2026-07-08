@@ -26,14 +26,11 @@ desktop.ini
 _dark_mode_test.py
 _dark_mode_admin_test.py
 
-# Fotos dos participantes (privadas)
-Fotos/
-
-# Imagens e capturas de teste
-*.png
-*.jpg
-*.jpeg
-*.gif
-*.webp
-*.bmp
-*.svg
+# Imagens e capturas de teste (exceto Fotos/ dos participantes)
+/*.png
+/*.jpg
+/*.jpeg
+/*.gif
+/*.webp
+/*.bmp
+/*.svg
