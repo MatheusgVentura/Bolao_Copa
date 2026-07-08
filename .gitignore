@@ -1,1 +1,42 @@
 Senha_admin.txt
+
+# Credenciais reais do Supabase — nunca commitar
+supabase-config.js
+
+# Dependências
+node_modules/
+
+# Logs
+*.log
+npm-debug.log*
+
+# Sistema
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Editor
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Claude / agentes
+.claude/
+.agents/
+
+# Testes temporários
+_dark_mode_test.py
+_dark_mode_admin_test.py
+
+# Fotos dos participantes (privadas)
+Fotos/
+
+# Imagens e capturas de teste
+*.png
+*.jpg
+*.jpeg
+*.gif
+*.webp
+*.bmp
+*.svg

@@ -54,6 +54,12 @@ const refreshButton = document.querySelector("#refreshButton");
 const importMatchesButton = document.querySelector("#importMatchesButton");
 const adminLoginButton = document.querySelector("#adminLoginButton");
 const adminLogoutButton = document.querySelector("#adminLogoutButton");
+const adminLoginModal = document.querySelector("#adminLoginModal");
+const adminAuthForm = document.querySelector("#adminAuthForm");
+const adminEmailInput = document.querySelector("#adminEmail");
+const adminPasswordModalInput = document.querySelector("#adminPasswordInput");
+const adminAuthMessage = document.querySelector("#adminAuthMessage");
+const adminLoginCancel = document.querySelector("#adminLoginCancel");
 const clearResultButton = document.querySelector("#clearResultButton");
 const disableBonusPointsButton = document.querySelector("#disableBonusPointsButton");
 const clearSpecialResultButton = document.querySelector("#clearSpecialResultButton");
@@ -127,7 +133,7 @@ let selectedAdminPredictMatch = "";
 let lastAdminPredictKey = null;
 let selectedLogDay = "";
 let selectedLogMatch = "all";
-let isAdmin = sessionStorage.getItem("bolao-admin") === "true";
+let isAdmin = false;
 let activeAdminTab = sessionStorage.getItem("bolao-admin-tab") || "review";
 let nextKickoffTimer = null;
 let countdownIntervalId = null;
@@ -3193,24 +3199,53 @@ adminBonusTable.addEventListener("click", async (event) => {
   }
 });
 
-adminLoginButton.addEventListener("click", async () => {
-  const password = window.prompt("Senha do admin");
-  if (password !== appConfig?.adminPassword) {
-    window.alert("Senha incorreta.");
+adminLoginButton.addEventListener("click", () => {
+  adminAuthMessage.textContent = "";
+  adminAuthForm.reset();
+  adminLoginModal.classList.remove("hidden");
+  adminEmailInput.focus();
+});
+
+adminLoginCancel.addEventListener("click", () => {
+  adminLoginModal.classList.add("hidden");
+});
+
+adminLoginModal.addEventListener("click", (event) => {
+  if (event.target === adminLoginModal) {
+    adminLoginModal.classList.add("hidden");
+  }
+});
+
+adminAuthForm.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  const email = adminEmailInput.value.trim();
+  const password = adminPasswordModalInput.value;
+
+  if (!email || !password) {
+    adminAuthMessage.textContent = "Preencha e-mail e senha.";
     return;
   }
 
-  isAdmin = true;
-  sessionStorage.setItem("bolao-admin", "true");
-  applyAdminMode();
-  await loadAll();
+  adminAuthMessage.textContent = "Entrando...";
+
+  try {
+    const { error } = await supabaseClient.auth.signInWithPassword({ email, password });
+    if (error) throw error;
+    // onAuthStateChange cuida do resto (isAdmin, applyAdminMode, loadAll)
+    adminLoginModal.classList.add("hidden");
+  } catch (error) {
+    adminAuthMessage.textContent = "E-mail ou senha incorretos.";
+    console.error(error);
+  }
 });
 
 adminLogoutButton.addEventListener("click", async () => {
-  isAdmin = false;
-  sessionStorage.removeItem("bolao-admin");
-  applyAdminMode();
-  await loadAll();
+  try {
+    await supabaseClient.auth.signOut();
+  } catch (error) {
+    console.error(error);
+  }
+  // onAuthStateChange cuida do resto
 });
 
 function subscribeToChanges() {
@@ -3233,10 +3268,32 @@ async function start() {
   }
 
   appConfig = config;
-  if (!appConfig.adminPassword || appConfig.adminPassword === "troque-essa-senha") {
-    setStatus("Defina uma senha admin em supabase-config.js antes de publicar.", "error");
-  }
   supabaseClient = supabase.createClient(config.url, config.anonKey);
+
+  // Listener de autenticação: atualiza isAdmin e recarrega os dados quando
+  // o admin faz login/logout. A sessão é gerenciada pelo Supabase Auth.
+  supabaseClient.auth.onAuthStateChange(async (event, session) => {
+    const wasAdmin = isAdmin;
+    isAdmin = Boolean(session?.user);
+
+    if (isAdmin !== wasAdmin) {
+      applyAdminMode();
+      try {
+        await loadAll();
+      } catch (error) {
+        console.error(error);
+      }
+    }
+  });
+
+  // Restaura sessão existente (ex.: aba reaberta dentro da validade do token).
+  try {
+    const { data: { session } } = await supabaseClient.auth.getSession();
+    isAdmin = Boolean(session?.user);
+    applyAdminMode();
+  } catch (error) {
+    console.error(error);
+  }
 
   try {
     await loadAll();
