@@ -27,6 +27,41 @@
   <body>
     <div class="loading-bar" id="loadingBar" aria-hidden="true"></div>
     <a class="skip-link" href="#main-content">Pular para o conteudo principal</a>
+
+    <div class="champion-overlay hidden" id="championOverlay" role="dialog" aria-modal="true" aria-labelledby="championHallTitle" aria-describedby="championHallSummary">
+      <div class="champion-confetti" aria-hidden="true">
+        <span></span><span></span><span></span><span></span><span></span><span></span>
+        <span></span><span></span><span></span><span></span><span></span><span></span>
+      </div>
+      <section class="champion-hall" aria-label="Hall do campeao do bolao">
+        <button class="champion-close" id="championCloseButton" type="button" aria-label="Fechar hall do campeao e ver o bolao inteiro" data-always-enabled>X</button>
+        <div class="champion-stage">
+          <p class="champion-kicker">A Copa acabou</p>
+          <h2 id="championHallTitle">Hall do campeao</h2>
+          <p class="champion-summary" id="championHallSummary">O primeiro lugar do bolao merece a entrada triunfal.</p>
+
+          <div class="champion-podium" id="championPodium" aria-label="Podio final do bolao"></div>
+
+          <div class="champion-stats" aria-label="Resumo do campeao">
+            <div>
+              <span id="championMatchPoints">0</span>
+              <small>pontos nos jogos</small>
+            </div>
+            <div>
+              <span id="championBonusPoints">0</span>
+              <small>bonus</small>
+            </div>
+            <div>
+              <span id="championPrize">R$ 0</span>
+              <small>premio total</small>
+            </div>
+          </div>
+
+          <div class="champion-official" id="championOfficialTeam">Campeao da Copa: aguardando oficial</div>
+        </div>
+      </section>
+    </div>
+
     <main class="page" id="main-content" tabindex="-1">
       <section class="panel intro" aria-labelledby="page-title">
         <div>

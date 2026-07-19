@@ -116,6 +116,13 @@ const loadingBar = document.querySelector("#loadingBar");
 const toastContainer = document.querySelector("#toastContainer");
 const installAppButton = document.querySelector("#installAppButton");
 const themeToggleButton = document.querySelector("#themeToggleButton");
+const championOverlay = document.querySelector("#championOverlay");
+const championCloseButton = document.querySelector("#championCloseButton");
+const championMatchPoints = document.querySelector("#championMatchPoints");
+const championBonusPoints = document.querySelector("#championBonusPoints");
+const championPrize = document.querySelector("#championPrize");
+const championOfficialTeam = document.querySelector("#championOfficialTeam");
+const championPodium = document.querySelector("#championPodium");
 
 let supabaseClient = null;
 let appConfig = null;
@@ -147,6 +154,7 @@ let deferredInstallPrompt = null;
 const simScores = new Map();
 let matchesRenderPending = false;
 const NOTIFIED_MATCHES_KEY = "bolao-notified-matches";
+const CHAMPION_HALL_DISMISSED_KEY = "bolao-champion-hall-dismissed";
 const TOAST_DURATION_MS = 8000;
 
 // Bracket structure for the 2026 World Cup knockout stage.
@@ -285,6 +293,7 @@ function setStatus(message, type = "") {
 
 function setFormsEnabled(enabled) {
   document.querySelectorAll("input, select, button").forEach((element) => {
+    if (element.matches("[data-always-enabled]")) return;
     element.disabled = !enabled;
   });
 }
@@ -711,6 +720,68 @@ function calculateRanking() {
       return { ...participant, ...score };
     })
     .sort((a, b) => b.total - a.total || a.name.localeCompare(b.name));
+}
+
+function dismissChampionHall() {
+  if (!championOverlay) return;
+
+  sessionStorage.setItem(CHAMPION_HALL_DISMISSED_KEY, "1");
+  championOverlay.classList.add("hidden");
+  document.body.classList.remove("champion-hall-open");
+}
+
+function championPodiumItemMarkup(participant, index) {
+  const name = escapeHtml(participant.name);
+  const rank = index + 1;
+  const initial = escapeHtml(participant.name.trim()[0]?.toUpperCase() || "?");
+  const photoSrc = getParticipantPhoto(participant.name);
+  const avatarImg = photoSrc
+    ? `<img src="${photoSrc}" alt="" aria-hidden="true" onerror="this.parentElement.classList.add('no-photo')">`
+    : "";
+  const title = rank === 1 ? "Campeao" : `${rank} lugar`;
+
+  return `
+    <article class="champion-podium-item" data-place="${rank}">
+      <div class="champion-driver-top">
+        ${rank === 1 ? `<span class="champion-podium-crown" aria-hidden="true"></span>` : ""}
+        <div class="champion-podium-avatar ${photoSrc ? "" : "no-photo"}" data-initial="${initial}">${avatarImg}</div>
+      </div>
+      <div class="champion-driver-info">
+        <span class="champion-place">${rank}</span>
+        <small>${title}</small>
+        <strong>${name}</strong>
+        <span class="champion-podium-score">${participant.total} pts</span>
+      </div>
+    </article>
+  `;
+}
+
+function renderChampionHall() {
+  if (!championOverlay) return;
+
+  const ranking = calculateRanking();
+  const dismissed = sessionStorage.getItem(CHAMPION_HALL_DISMISSED_KEY) === "1";
+
+  if (!ranking.length || dismissed) {
+    championOverlay.classList.add("hidden");
+    document.body.classList.remove("champion-hall-open");
+    return;
+  }
+
+  const champion = ranking[0];
+  const paidCount = participants.filter((participant) => participant.paid).length;
+  const bonus = champion.bonusPoints + champion.manualPoints;
+
+  championMatchPoints.textContent = champion.matchPoints;
+  championBonusPoints.textContent = bonus;
+  championPrize.textContent = money(paidCount * ENTRY_VALUE);
+  championOfficialTeam.textContent = specialResults?.champion
+    ? `Campeao da Copa: ${specialResults.champion}`
+    : "Campeao da Copa: aguardando oficial";
+
+  championPodium.innerHTML = ranking.slice(0, 3).map(championPodiumItemMarkup).join("");
+  championOverlay.classList.remove("hidden");
+  document.body.classList.add("champion-hall-open");
 }
 
 function stageLabel(stage) {
@@ -2093,6 +2164,7 @@ function render() {
   renderSelects();
   renderDayMatchesPreview();
   renderRanking();
+  renderChampionHall();
   renderMatches();
   renderBracket();
   renderHighlights();
@@ -3378,6 +3450,14 @@ if ("serviceWorker" in navigator) {
 }
 
 updateInstallButtonVisibility();
+
+championCloseButton?.addEventListener("click", dismissChampionHall);
+
+document.addEventListener("keydown", (event) => {
+  if (event.key === "Escape" && championOverlay && !championOverlay.classList.contains("hidden")) {
+    dismissChampionHall();
+  }
+});
 
 // Tab nav: click switches content sections
 document.querySelectorAll(".quick-nav a[data-tab]").forEach((link) => {

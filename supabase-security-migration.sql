@@ -186,8 +186,9 @@ declare
   m_kickoff timestamptz;
   m_released boolean;
 begin
-  -- Admin (service_role) bypassa a verificação.
-  if auth.role() = 'service_role' then
+  -- Admin (authenticated ou service_role) bypassa a verificação: o painel admin
+  -- precisa inserir/corrigir palpites mesmo depois do prazo encerrado.
+  if public.is_admin() then
     if tg_op = 'DELETE' then return old; end if;
     return new;
   end if;
